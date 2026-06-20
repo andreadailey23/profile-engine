@@ -64,12 +64,41 @@ export type RoomType =
   | "streams"
   | "books"
   | "channels"
-  | "reports";
+  | "reports"
+  | "library";
 
 export type ProfileHighlight = {
   label: string;
   value: string;
   detail?: string;
+};
+
+export type ProfileLibraryItemType =
+  | "game"
+  | "book"
+  | "tool"
+  | "music"
+  | "show"
+  | "product"
+  | "resource";
+
+export type ProfileLibraryItemStatus =
+  | "playing"
+  | "reading"
+  | "using"
+  | "recommend"
+  | "want"
+  | "finished";
+
+export type ProfileLibraryItem = {
+  id: string;
+  houseId: string;
+  title: string;
+  type: ProfileLibraryItemType;
+  status: ProfileLibraryItemStatus;
+  tags: string[];
+  note: string;
+  url?: string;
 };
 
 export type House = {

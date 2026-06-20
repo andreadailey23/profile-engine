@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   Activity,
   ArrowUpRight,
+  BookOpen,
   CalendarDays,
   Grid3X3,
   Link2,
@@ -17,6 +18,9 @@ import type {
   HouseItem,
   HouseStatus,
   HouseType,
+  ProfileLibraryItem,
+  ProfileLibraryItemStatus,
+  ProfileLibraryItemType,
   ProfileViewType,
   ProfileThemeId,
   RoomType,
@@ -34,6 +38,25 @@ const statusLabels: Record<HouseStatus, string> = {
   planned: "planned",
   archived: "archived",
   "coming-soon": "coming soon",
+};
+
+const libraryTypeLabels: Record<ProfileLibraryItemType, string> = {
+  game: "Game",
+  book: "Book",
+  tool: "Tool",
+  music: "Music",
+  show: "Show",
+  product: "Product",
+  resource: "Resource",
+};
+
+const libraryStatusLabels: Record<ProfileLibraryItemStatus, string> = {
+  playing: "Playing",
+  reading: "Reading",
+  using: "Using",
+  recommend: "Recommend",
+  want: "Want",
+  finished: "Finished",
 };
 
 function statusStyle(status: HouseStatus) {
@@ -157,11 +180,11 @@ const viewLabels: Record<ProfileViewType, string> = {
 };
 
 const viewRooms: Record<ProfileViewType, RoomType[]> = {
-  default: ["identity", "positioning", "work", "products", "links", "activity"],
-  social: ["posts", "activity", "schedule", "community", "links"],
+  default: ["identity", "positioning", "work", "products", "library", "links", "activity"],
+  social: ["posts", "activity", "schedule", "community", "library", "links"],
   marketplace: ["products", "offers", "shop", "books", "support", "links"],
   professional: ["positioning", "proof", "work", "reports", "contact"],
-  content: ["posts", "media", "channels", "books", "activity", "links"],
+  content: ["posts", "media", "channels", "books", "library", "activity", "links"],
   schedule: ["schedule", "contact", "links"],
   support: ["support", "offers", "products", "contact", "links"],
   updates: ["activity", "updates", "posts"],
@@ -178,6 +201,7 @@ export default function ProfileView({ profile }: Props) {
     ownsHouses,
     relatedHouses,
     items,
+    libraryItems,
     schedule,
     updates,
   } = profile;
@@ -191,6 +215,7 @@ export default function ProfileView({ profile }: Props) {
       : selectedViews[0] ?? "default";
   const [activeView, setActiveView] = useState<ProfileViewType>(initialView);
   const [avatarOverride, setAvatarOverride] = useState<AvatarSettings | undefined>();
+  const [libraryFilter, setLibraryFilter] = useState<ProfileLibraryItemType | "all">("all");
   const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
   const theme = getProfileTheme(themeOverride ?? house.themeId);
 
@@ -267,6 +292,11 @@ export default function ProfileView({ profile }: Props) {
   const socialLinks = links.filter((link) => link.type === "social");
   const coreLinks = links.filter((link) => link.type !== "social");
   const showLinks = activeRooms.includes("links");
+  const showLibrary = activeRooms.includes("library") && libraryItems.length > 0;
+  const libraryTypes = Array.from(new Set(libraryItems.map((item) => item.type)));
+  const visibleLibraryItems =
+    libraryFilter === "all" ? libraryItems : libraryItems.filter((item) => item.type === libraryFilter);
+  const libraryTitle = house.handle === "streamo" ? "My Games" : "Library";
   const avatarColor = avatarOverride?.color ?? house.primaryColor;
   const avatarImage = avatarOverride?.image;
   const avatarIsOutline = avatarOverride?.mode === "outline" && !avatarImage;
@@ -335,7 +365,7 @@ export default function ProfileView({ profile }: Props) {
                 <p className="text-sm leading-6 text-[var(--profile-text-soft)]">{house.description}</p>
               </ProfileSpineBlock>
 
-              <ProfileSpineBlock title="Roles">
+              <ProfileSpineBlock title="Identity">
                 <PillList items={house.roles.slice(0, 5)} />
               </ProfileSpineBlock>
 
@@ -473,6 +503,45 @@ export default function ProfileView({ profile }: Props) {
               </ProfileSection>
             )}
 
+            {showLibrary && (
+              <ProfileSection icon={<BookOpen size={17} />} id="library" title={libraryTitle}>
+                <div className="grid gap-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className={`rounded-md border px-3 py-2 text-[10px] font-normal uppercase tracking-[0.12em] transition ${
+                        libraryFilter === "all"
+                          ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
+                          : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-muted)] hover:border-[var(--profile-accent)] hover:text-[var(--profile-text)]"
+                      }`}
+                      onClick={() => setLibraryFilter("all")}
+                      type="button"
+                    >
+                      All
+                    </button>
+                    {libraryTypes.map((type) => (
+                      <button
+                        className={`rounded-md border px-3 py-2 text-[10px] font-normal uppercase tracking-[0.12em] transition ${
+                          libraryFilter === type
+                            ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
+                            : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-muted)] hover:border-[var(--profile-accent)] hover:text-[var(--profile-text)]"
+                        }`}
+                        key={type}
+                        onClick={() => setLibraryFilter(type)}
+                        type="button"
+                      >
+                        {libraryTypeLabels[type]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {visibleLibraryItems.map((item) => (
+                      <LibraryCard item={item} key={item.id} />
+                    ))}
+                  </div>
+                </div>
+              </ProfileSection>
+            )}
+
             {roomModules.length > 0 && (
               <ProfileSection icon={<Grid3X3 size={17} />} id="sections" title="Profile sections">
                 <div className="grid gap-4">
@@ -607,7 +676,7 @@ function PillList({ accent = false, items }: { accent?: boolean; items: string[]
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
         <span
-          className={`rounded-full border px-3 py-1 text-[10px] font-normal uppercase tracking-[0.12em] ${
+          className={`rounded-md border px-3 py-1 text-[10px] font-normal uppercase tracking-[0.12em] ${
             accent
               ? "border-[var(--profile-accent)] bg-[var(--profile-accent-soft)] text-[var(--profile-accent-strong)]"
               : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-text-soft)]"
@@ -676,6 +745,36 @@ function Panel({ children, icon, title }: { children: ReactNode; icon: ReactNode
       </div>
       {children}
     </section>
+  );
+}
+
+function LibraryCard({ item }: { item: ProfileLibraryItem }) {
+  const card = (
+    <article className="h-full rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
+          {libraryTypeLabels[item.type]}
+        </span>
+        <span className="rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent-soft)] px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] text-[var(--profile-accent-strong)]">
+          {libraryStatusLabels[item.status]}
+        </span>
+      </div>
+      <h3 className="text-lg font-normal text-[var(--profile-text)]">{item.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[var(--profile-text-soft)]">{item.note}</p>
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
+        {item.tags.map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </div>
+    </article>
+  );
+
+  if (!item.url) return card;
+
+  return (
+    <a href={item.url} target={item.url.startsWith("http") ? "_blank" : undefined} rel={item.url.startsWith("http") ? "noreferrer" : undefined}>
+      {card}
+    </a>
   );
 }
 

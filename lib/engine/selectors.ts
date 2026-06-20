@@ -2,6 +2,7 @@ import {
   activity,
   houses,
   items,
+  libraryItems,
   links,
   modules,
   relationships,
@@ -20,18 +21,18 @@ export type ProfileContext =
 export type ProfileRecord = ReturnType<typeof getProfileRecord>;
 
 export const profileSectionPresets: Record<HouseType, RoomType[]> = {
-  person: ["identity", "positioning", "proof", "work", "products", "links", "schedule", "contact", "activity"],
-  brand: ["products", "posts", "proof", "links", "contact", "activity"],
-  company: ["products", "proof", "offers", "links", "contact", "activity"],
-  product: ["details", "use-cases", "proof", "buy", "updates", "support", "links"],
-  app: ["details", "use-cases", "proof", "support", "links", "activity"],
-  project: ["identity", "proof", "work", "links", "activity"],
-  book: ["details", "proof", "buy", "support", "links", "activity"],
-  creator: ["channels", "schedule", "clips", "links", "community", "support"],
-  collection: ["details", "products", "buy", "support", "links", "activity"],
-  offer: ["details", "proof", "buy", "support", "links"],
-  community: ["channels", "schedule", "community", "links", "support", "activity"],
-  studio: ["channels", "media", "products", "schedule", "links", "activity"],
+  person: ["identity", "positioning", "proof", "work", "products", "library", "links", "schedule", "contact", "activity"],
+  brand: ["products", "posts", "proof", "library", "links", "contact", "activity"],
+  company: ["products", "proof", "offers", "library", "links", "contact", "activity"],
+  product: ["details", "use-cases", "proof", "buy", "updates", "support", "library", "links"],
+  app: ["details", "use-cases", "proof", "support", "library", "links", "activity"],
+  project: ["identity", "proof", "work", "library", "links", "activity"],
+  book: ["details", "proof", "buy", "support", "library", "links", "activity"],
+  creator: ["channels", "schedule", "clips", "library", "links", "community", "support"],
+  collection: ["details", "products", "buy", "support", "library", "links", "activity"],
+  offer: ["details", "proof", "buy", "support", "library", "links"],
+  community: ["channels", "schedule", "community", "library", "links", "support", "activity"],
+  studio: ["channels", "media", "products", "schedule", "library", "links", "activity"],
 };
 
 export const profileContexts: Array<{
@@ -44,37 +45,37 @@ export const profileContexts: Array<{
     id: "standalone",
     label: "Standalone",
     description: "The full public profile for a person, brand, product, or community.",
-    rooms: ["identity", "positioning", "proof", "products", "offers", "schedule", "links", "contact", "activity"],
+    rooms: ["identity", "positioning", "proof", "products", "offers", "library", "schedule", "links", "contact", "activity"],
   },
   {
     id: "building-empires",
     label: "Building Empires",
     description: "Tools, systems, offers, store paths, and profile setup.",
-    rooms: ["identity", "positioning", "proof", "products", "offers", "schedule", "support", "links", "activity"],
+    rooms: ["identity", "positioning", "proof", "products", "offers", "library", "schedule", "support", "links", "activity"],
   },
   {
     id: "andrea-in-public",
     label: "Andrea in Public",
     description: "Build logs, essays, products, offers, and public proof.",
-    rooms: ["identity", "positioning", "proof", "work", "products", "posts", "links", "activity"],
+    rooms: ["identity", "positioning", "proof", "work", "products", "posts", "library", "links", "activity"],
   },
   {
     id: "atla",
     label: "Atla",
     description: "Work sections, products, reports, files, support, and activity.",
-    rooms: ["identity", "positioning", "proof", "work", "products", "reports", "support", "links", "activity"],
+    rooms: ["identity", "positioning", "proof", "work", "products", "reports", "support", "library", "links", "activity"],
   },
   {
     id: "streamo",
     label: "Streamo",
     description: "Games, streams, creator links, community proof, and schedule.",
-    rooms: ["identity", "positioning", "proof", "games", "streams", "products", "schedule", "links", "activity"],
+    rooms: ["identity", "positioning", "proof", "games", "streams", "products", "library", "schedule", "links", "activity"],
   },
   {
     id: "habits",
     label: "Habits That Matter",
     description: "Books, shop, offers, posts, support, and useful habit proof.",
-    rooms: ["identity", "positioning", "proof", "books", "shop", "offers", "support", "links", "activity"],
+    rooms: ["identity", "positioning", "proof", "books", "shop", "offers", "library", "support", "links", "activity"],
   },
 ];
 
@@ -144,6 +145,7 @@ export function getProfileRecord(handle: string, context: ProfileContext = "stan
       .map((relationship) => byId(relationship.from === house.id ? relationship.to : relationship.from))
       .filter(isHouse),
     items: items.filter((item) => item.houseId === house.id),
+    libraryItems: libraryItems.filter((item) => item.houseId === house.id),
     schedule: schedule
       .filter((item) => item.houseId === house.id && item.visible)
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()),
@@ -158,6 +160,7 @@ export function getEngineStats() {
     profiles: publicProfiles.length,
     roomTypes: new Set(publicProfiles.flatMap((house) => house.rooms)).size,
     products: items.length,
+    libraryItems: libraryItems.length,
     scheduled: schedule.filter((item) => item.visible).length,
   };
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  BookOpen,
   CalendarDays,
   Check,
   Copy,
@@ -17,7 +18,7 @@ import {
 import { getProfileTheme, profileThemes } from "@/lib/engine/themes";
 import type { ProfileThemeId } from "@/lib/engine/types";
 
-type SettingsTab = "profile" | "links" | "schedule" | "appearance" | "sharing" | "account";
+type SettingsTab = "profile" | "library" | "links" | "schedule" | "appearance" | "sharing" | "account";
 
 const profilePath = "/andrea-dailey";
 const profileHandle = "andrea-dailey";
@@ -26,6 +27,7 @@ const profileThemeStorageKey = `building-empires-profile-theme-${profileHandle}`
 
 const tabs: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
   { key: "profile", label: "Profile", icon: UserRound },
+  { key: "library", label: "Library", icon: BookOpen },
   { key: "links", label: "Links", icon: Link2 },
   { key: "schedule", label: "Schedule", icon: CalendarDays },
   { key: "appearance", label: "Appearance", icon: Palette },
@@ -135,6 +137,7 @@ export default function SettingsPage() {
 
           <section className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-10">
             {activeTab === "profile" && <ProfileSettings />}
+            {activeTab === "library" && <LibrarySettings />}
             {activeTab === "links" && <LinksSettings />}
             {activeTab === "schedule" && <ScheduleSettings />}
             {activeTab === "appearance" && <AppearanceSettings selectedTheme={selectedTheme} onSelectTheme={selectTheme} />}
@@ -202,7 +205,7 @@ function ProfileSettings() {
         <Field label="Name" value="Andrea Dailey" />
         <Field label="Handle" value="@andrea-dailey" />
         <Field label="Bio" value="Builder, author, product operator, and public systems maker." />
-        <Field label="Roles" value="Author, Entrepreneur, Builder, Product Builder, Systems Thinker" />
+        <Field label="Identity" value="Author, Entrepreneur, Builder, Product Builder, Systems Thinker" />
         <Field label="Vibe" value="Sharp, Minimal, Useful, Funny, High Signal" />
         <Field label="Highlights" value="Products shipped: 10+, Books published: 2, Systems built: 6" />
         <Field label="Views" value="Default, Marketplace, Professional" />
@@ -221,6 +224,20 @@ function LinksSettings() {
         <Field label="Instagram" value="@andreainpublic" />
         <Field label="TikTok" value="@andreainpublic" />
         <Field label="YouTube" value="@andreainpublic" />
+      </SettingsPanel>
+    </>
+  );
+}
+
+function LibrarySettings() {
+  return (
+    <>
+      <SettingsHeader eyebrow="library" title="Library" />
+      <SettingsPanel>
+        <LibraryField title="Atomic Habits" type="Book" status="Recommend" tags="habits, systems" note="Useful baseline for systems and small repeatable actions." />
+        <LibraryField title="Stream Deck" type="Tool" status="Using" tags="workflow, studio" note="Fast shortcuts for repeated workflows." />
+        <LibraryField title="Lo-fi work playlists" type="Music" status="Using" tags="focus, building" note="Default background layer for long build days." />
+        <LibraryField title="Add item" type="Game, Book, Tool, Music, Show, Product, Resource" status="Playing, Reading, Using, Recommend, Want, Finished" tags="custom tags" note="Short note" />
       </SettingsPanel>
     </>
   );
@@ -418,6 +435,50 @@ function Field({ label, value }: { label: string; value: string }) {
       <input
         className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60"
         defaultValue={value}
+      />
+    </div>
+  );
+}
+
+function LibraryField({
+  note,
+  status,
+  tags,
+  title,
+  type,
+}: {
+  note: string;
+  status: string;
+  tags: string;
+  title: string;
+  type: string;
+}) {
+  return (
+    <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_130px_150px]">
+      <input
+        aria-label="Title"
+        className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60"
+        defaultValue={title}
+      />
+      <input
+        aria-label="Type"
+        className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60"
+        defaultValue={type}
+      />
+      <input
+        aria-label="Status"
+        className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60"
+        defaultValue={status}
+      />
+      <input
+        aria-label="Tags"
+        className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60 lg:col-span-1"
+        defaultValue={tags}
+      />
+      <input
+        aria-label="Note"
+        className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60 lg:col-span-2"
+        defaultValue={note}
       />
     </div>
   );

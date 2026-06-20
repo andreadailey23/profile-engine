@@ -75,7 +75,8 @@ create table blocks (
     'streams',
     'books',
     'channels',
-    'reports'
+    'reports',
+    'library'
   )),
   kind text not null default 'text',
   title text not null,
@@ -115,6 +116,23 @@ create table items (
   position int not null default 0
 );
 
+-- Simple universal profile library. This is not a full Goodreads/Steam clone:
+-- it is a lightweight shelf of things a profile likes, uses, plays, reads,
+-- watches, or recommends.
+create table library_items (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id),
+  entity_id uuid not null references entities(id),
+  title text not null,
+  type text not null check (type in ('game','book','tool','music','show','product','resource')),
+  status text not null check (status in ('playing','reading','using','recommend','want','finished')),
+  tags text[] not null default '{}',
+  note text,
+  url text,
+  position int not null default 0,
+  data jsonb not null default '{}'::jsonb
+);
+
 -- Simple schedule module. No full calendar app in V1.
 create table schedule_items (
   id uuid primary key default gen_random_uuid(),
@@ -136,7 +154,7 @@ create table events (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id),
   entity_id uuid not null references entities(id),
-  room text not null check (room in ('identity','positioning','proof','work','products','posts','links','activity','schedule','shop','support','contact','details','offers','use-cases','buy','updates','media','community','clips','marketplace','games','streams','books','channels','reports')),
+  room text not null check (room in ('identity','positioning','proof','work','products','posts','links','activity','schedule','shop','support','contact','details','offers','use-cases','buy','updates','media','community','clips','marketplace','games','streams','books','channels','reports','library')),
   kind text not null,
   label text not null,
   xp int not null default 0,
