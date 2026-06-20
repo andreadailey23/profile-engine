@@ -20,10 +20,16 @@ create table entities (
   tagline text,
   about text,
   theme_id text,
+  roles text[] not null default '{}',
+  vibes text[] not null default '{}',
+  highlight_stats jsonb not null default '[]'::jsonb,
+  selected_views text[] not null default '{default}',
+  default_view text not null default 'default'
+    check (default_view in ('default','social','marketplace','professional','content','schedule','support','updates')),
   status text not null default 'building'
     check (status in ('building','live','selling','testing','paused','planned','archived','coming-soon')),
   visibility text not null default 'public'
-    check (visibility in ('public','private')),
+    check (visibility in ('public','unlisted','private')),
   data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
@@ -75,6 +81,8 @@ create table blocks (
   title text not null,
   body text,
   cta text,
+  visibility text not null default 'public'
+    check (visibility in ('public','circle','private')),
   position int not null default 0,
   config jsonb not null default '{}'::jsonb
 );

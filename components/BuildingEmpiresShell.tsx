@@ -187,7 +187,7 @@ export default function BuildingEmpiresShell({
         <div className="aw-spacer" />
         <div className="aw-rail-footer">
           <p className="aw-rail-note">
-            TOOLS NOW. PROFILES NEXT<span className="aw-rail-note-dot">.</span>
+            EXPRESS YOUR WORLD
           </p>
         </div>
       </aside>
@@ -283,19 +283,6 @@ export default function BuildingEmpiresShell({
         <footer className="site-footer" aria-label="Site footer">
           <span className="site-footer-brand">
             <span>BUILDING EMPIRES © 2026</span>
-            <span className="site-footer-tagline">
-              Express your world<span className="site-footer-dot">.</span>
-            </span>
-          </span>
-          <span className="site-footer-links">
-            <Link href="/">Home</Link>
-            <Link href="/about">About</Link>
-            <Link href="/profiles">Profiles</Link>
-            <Link href="/marketplace">Marketplace</Link>
-            <Link href="/best-of">Best of</Link>
-          </span>
-          <span className="site-footer-parent">
-            Powered by the profile engine
           </span>
         </footer>
       </div>

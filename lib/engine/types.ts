@@ -28,6 +28,16 @@ export type HouseStatus =
   | "archived"
   | "coming-soon";
 
+export type ProfileViewType =
+  | "default"
+  | "social"
+  | "marketplace"
+  | "professional"
+  | "content"
+  | "schedule"
+  | "support"
+  | "updates";
+
 export type RoomType =
   | "identity"
   | "positioning"
@@ -56,6 +66,12 @@ export type RoomType =
   | "channels"
   | "reports";
 
+export type ProfileHighlight = {
+  label: string;
+  value: string;
+  detail?: string;
+};
+
 export type House = {
   id: string;
   handle: string;
@@ -68,10 +84,14 @@ export type House = {
   themeId?: ProfileThemeId;
   status: HouseStatus;
   owner: string;
+  roles: string[];
   tags: string[];
   vibes: string[];
+  highlights?: ProfileHighlight[];
+  selectedViews?: ProfileViewType[];
+  defaultView?: ProfileViewType;
   rooms: RoomType[];
-  visibility: "public" | "private";
+  visibility: "public" | "unlisted" | "private";
 };
 
 export type ProfileEntity = House;

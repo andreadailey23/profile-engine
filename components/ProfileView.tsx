@@ -17,6 +17,7 @@ import type {
   HouseItem,
   HouseStatus,
   HouseType,
+  ProfileViewType,
   ProfileThemeId,
   RoomType,
   ScheduleItem,
@@ -119,12 +120,31 @@ type Props = {
   profile: NonNullable<ProfileRecord>;
 };
 
-type ProfileRoom = RoomType | "overview";
+const viewLabels: Record<ProfileViewType, string> = {
+  default: "Overview",
+  social: "Social",
+  marketplace: "Marketplace",
+  professional: "Professional",
+  content: "Content",
+  schedule: "Schedule",
+  support: "Support",
+  updates: "Updates",
+};
+
+const viewRooms: Record<ProfileViewType, RoomType[]> = {
+  default: ["identity", "positioning", "work", "products", "links", "activity"],
+  social: ["posts", "activity", "schedule", "community", "links"],
+  marketplace: ["products", "offers", "shop", "books", "support", "links"],
+  professional: ["positioning", "proof", "work", "reports", "contact"],
+  content: ["posts", "media", "channels", "books", "activity", "links"],
+  schedule: ["schedule", "contact", "links"],
+  support: ["support", "offers", "products", "contact", "links"],
+  updates: ["activity", "updates", "posts"],
+};
 
 export default function ProfileView({ profile }: Props) {
   const {
     house,
-    visibleRooms,
     modules,
     links,
     parentHouses,
@@ -136,7 +156,15 @@ export default function ProfileView({ profile }: Props) {
     schedule,
     updates,
   } = profile;
-  const [activeRoom, setActiveRoom] = useState<ProfileRoom>("overview");
+  const selectedViews = useMemo<ProfileViewType[]>(
+    () => (house.selectedViews && house.selectedViews.length > 0 ? house.selectedViews.slice(0, 3) : ["default"]),
+    [house.selectedViews],
+  );
+  const initialView =
+    house.defaultView && selectedViews.includes(house.defaultView)
+      ? house.defaultView
+      : selectedViews[0] ?? "default";
+  const [activeView, setActiveView] = useState<ProfileViewType>(initialView);
   const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
   const theme = getProfileTheme(themeOverride ?? house.themeId);
 
@@ -161,12 +189,10 @@ export default function ProfileView({ profile }: Props) {
     };
   }, [house.handle]);
 
+  const activeRooms = viewRooms[activeView] ?? viewRooms.default;
   const roomModules = useMemo(
-    () =>
-      activeRoom === "overview"
-        ? []
-        : modules.filter((module) => module.room === activeRoom),
-    [activeRoom, modules],
+    () => modules.filter((module) => activeRooms.includes(module.room)),
+    [activeRooms, modules],
   );
 
   const workItems = useMemo(
@@ -177,17 +203,13 @@ export default function ProfileView({ profile }: Props) {
     () => items.filter((item) => itemDisplayGroup(item) === "product"),
     [items],
   );
-  const showWorkItems =
-    activeRoom === "overview" ||
-    ["work", "channels", "media", "games", "streams", "community"].includes(activeRoom);
-  const showProductItems =
-    activeRoom === "overview" ||
-    ["products", "shop", "books", "offers", "support", "buy"].includes(activeRoom);
+  const showWorkItems = ["default", "professional", "content", "social"].includes(activeView);
+  const showProductItems = ["default", "marketplace", "support"].includes(activeView);
   const visibleWorkItems = showWorkItems ? workItems : [];
   const visibleProductItems = showProductItems ? productItems : [];
 
-  const visibleSchedule = activeRoom === "overview" || activeRoom === "schedule" ? schedule : [];
-  const visibleUpdates = activeRoom === "overview" || activeRoom === "activity" ? updates : [];
+  const visibleSchedule = ["default", "social", "schedule"].includes(activeView) ? schedule : [];
+  const visibleUpdates = ["default", "social", "content", "updates", "professional"].includes(activeView) ? updates : [];
   const connectedProfiles = [
     ...parentHouses.map((item) => ({ label: "part of", house: item })),
     ...ownerHouses.map((item) => ({ label: "built by", house: item })),
@@ -195,40 +217,15 @@ export default function ProfileView({ profile }: Props) {
     ...childHouses.map((item) => ({ label: "contains", house: item })),
     ...relatedHouses.map((item) => ({ label: "also connected", house: item })),
   ];
-  const overviewStats = [
-    { label: "sections", value: visibleRooms.length },
-    { label: "links", value: links.length },
-    { label: "work", value: workItems.length },
-    { label: "products", value: productItems.length },
-  ];
   const socialLinks = links.filter((link) => link.type === "social");
   const coreLinks = links.filter((link) => link.type !== "social");
-  const profileSharePath = `/${house.handle}`;
-  const identityTitle = house.type === "person" || house.type === "creator" ? "Who I am" : "What this is";
-  const identityCards = [
-    {
-      label: "about",
-      value: house.description,
-    },
-    {
-      label: "work",
-      value:
-        workItems.length > 0
-          ? workItems
-              .slice(0, 4)
-              .map((item) => item.title)
-              .join(" / ")
-          : visibleRooms.slice(0, 4).map(roomLabel).join(" / "),
-    },
-    {
-      label: "vibe",
-      value: Array.from(new Set([...house.vibes, ...house.tags])).slice(0, 7).join(" / "),
-    },
-    {
-      label: "start",
-      value: links[0] ? `${links[0].label} / ${displayUrl(links[0].url)}` : profileSharePath,
-    },
-  ];
+  const showLinks = activeRooms.includes("links");
+  const featuredPath = [
+    links[0] && { label: "Start here", value: links[0].label, href: links[0].url },
+    workItems[0] && { label: "Explore", value: workItems[0].title, href: workItems[0].url },
+    productItems[0] && { label: "Use", value: productItems[0].title, href: productItems[0].url },
+    updates[0] && { label: "Follow", value: "Build updates", href: updates[0].url },
+  ].filter(Boolean) as Array<{ label: string; value: string; href?: string }>;
 
   return (
     <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(theme)}>
@@ -236,14 +233,6 @@ export default function ProfileView({ profile }: Props) {
         <article className="relative isolate overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] shadow-[0_22px_90px_var(--profile-shadow)]">
           <div className="relative z-0 min-h-[230px] border-b border-[var(--profile-border)]" style={{ background: coverBackground(house.primaryColor, theme) }}>
             <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
-            <div className="absolute left-5 top-5 z-10 flex flex-wrap gap-2 sm:left-7">
-              <span className={`rounded-full border px-3 py-1 text-[10px] font-normal uppercase tracking-[0.14em] ${statusStyle(house.status)}`}>
-                {statusLabels[house.status]}
-              </span>
-              <span className="rounded-full border border-[var(--profile-border-strong)] bg-[var(--profile-surface-soft)] px-3 py-1 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-text)] backdrop-blur">
-                {house.type}
-              </span>
-            </div>
           </div>
 
           <div className="relative z-10 px-5 pb-6 sm:px-7">
@@ -259,6 +248,9 @@ export default function ProfileView({ profile }: Props) {
                 >
                   {house.initials}
                 </div>
+                <div className="mb-3 text-sm font-normal text-[var(--profile-muted)]">
+                  @{house.handle}
+                </div>
                 <h1 className="max-w-5xl text-[42px] font-normal uppercase leading-[0.95] tracking-normal text-[var(--profile-text)] sm:text-6xl lg:text-7xl">
                   {house.name}
                 </h1>
@@ -268,113 +260,120 @@ export default function ProfileView({ profile }: Props) {
               </div>
 
               <div className="flex flex-wrap gap-2 lg:justify-end">
-                {links.slice(0, 3).map((link, index) => (
-                  <a
-                    key={`${link.label}-${link.url}`}
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-4 text-sm font-normal transition ${
-                      index === 0
-                        ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)] hover:opacity-90"
-                        : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-text)] hover:border-[var(--profile-border-strong)]"
-                    }`}
-                  >
-                    {link.label}
-                    <ArrowUpRight size={15} aria-hidden="true" />
-                  </a>
-                ))}
+                <button className="inline-flex min-h-11 items-center rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent)] px-4 text-sm font-normal text-[var(--profile-button-text)] transition hover:opacity-90" type="button">
+                  Follow
+                </button>
+                <button className="inline-flex min-h-11 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-4 text-sm font-normal text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" type="button">
+                  Support
+                </button>
+                <a className="inline-flex min-h-11 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-4 text-sm font-normal text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" href="#contact">
+                  Contact
+                </a>
+                <a className="inline-flex min-h-11 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-4 text-sm font-normal text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" href="#links">
+                  More
+                </a>
               </div>
-            </div>
-
-            <div className="mt-6 grid gap-3 border-t border-[var(--profile-border)] pt-5 sm:grid-cols-4">
-              {overviewStats.map((stat) => (
-                <div key={stat.label} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4">
-                  <div className="text-3xl font-normal leading-none text-[var(--profile-text)]">{stat.value}</div>
-                  <div className="mt-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
-              {house.vibes.map((vibe) => (
-                <span key={vibe} className="text-[var(--profile-accent-strong)]">{vibe}</span>
-              ))}
-              {house.tags.map((tag) => (
-                <span key={tag} className="text-[var(--profile-accent)]">
-                  {tag}
-                </span>
-              ))}
             </div>
           </div>
         </article>
 
-        <section className="mt-5 rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-5">
-          <div className="flex items-center gap-2">
-            <span className="text-[var(--profile-accent)]">
-              <UserRound size={17} aria-hidden="true" />
-            </span>
-            <h2 className="text-xl font-normal text-[var(--profile-text)]">{identityTitle}</h2>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {identityCards.map((card) => (
-              <article key={card.label} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4">
-                <div className="text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
-                  {card.label}
-                </div>
-                <p className="mt-2 text-sm leading-6 text-[var(--profile-text-soft)]">{card.value}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <div className="mt-5 grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)_320px]">
+        <div className="mt-5 grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)_300px]">
           <aside className="grid content-start gap-4">
             <section className="rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-4 lg:sticky lg:top-[72px]">
-              <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[var(--profile-muted)]">
-                <Grid3X3 size={14} aria-hidden="true" />
-                sections
-              </div>
-              <div className="grid gap-1">
-                <RoomButton active={activeRoom === "overview"} label="overview" onClick={() => setActiveRoom("overview")} />
-                {visibleRooms.map((room) => (
-                  <RoomButton
-                    key={room}
-                    active={activeRoom === room}
-                    label={profileRoomLabel(room, house.type)}
-                    onClick={() => setActiveRoom(room)}
-                  />
-                ))}
+              <ProfileSpineBlock title="About">
+                <p className="text-sm leading-6 text-[var(--profile-text-soft)]">{house.description}</p>
+              </ProfileSpineBlock>
+
+              <ProfileSpineBlock title="Roles">
+                <PillList items={house.roles.slice(0, 5)} />
+              </ProfileSpineBlock>
+
+              <ProfileSpineBlock title="Vibe">
+                <PillList items={house.vibes.slice(0, 5)} accent />
+              </ProfileSpineBlock>
+
+              {house.highlights && house.highlights.length > 0 && (
+                <ProfileSpineBlock title="Highlights">
+                  <div className="grid gap-2">
+                    {house.highlights.slice(0, 4).map((highlight) => (
+                      <div
+                        className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3"
+                        key={`${highlight.label}-${highlight.value}`}
+                      >
+                        <div className="text-lg font-normal leading-none text-[var(--profile-text)]">
+                          {highlight.value}
+                        </div>
+                        <div className="mt-1 text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
+                          {highlight.label}
+                        </div>
+                        {highlight.detail && (
+                          <p className="mt-2 text-xs leading-5 text-[var(--profile-text-soft)]">
+                            {highlight.detail}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ProfileSpineBlock>
+              )}
+
+              <div>
+                <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[var(--profile-muted)]">
+                  <Grid3X3 size={14} aria-hidden="true" />
+                  Navigation
+                </div>
+                <div className="grid gap-1">
+                  {selectedViews.map((view) => (
+                    <ViewButton
+                      key={view}
+                      active={activeView === view}
+                      label={viewLabels[view]}
+                      onClick={() => setActiveView(view)}
+                    />
+                  ))}
+                </div>
               </div>
             </section>
           </aside>
 
           <section className="grid min-w-0 content-start gap-5">
-            <ProfileSection icon={<Sparkles size={17} />} id="overview" title="Overview">
-              <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px]">
-                <div>
-                  <p className="text-base leading-7 text-[var(--profile-text-soft)]">{house.description}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {house.tags.map((tag) => (
-                      <span key={tag} className="rounded-full border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-3 py-1 text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-text-soft)]">
-                        {tag}
-                      </span>
-                    ))}
+            <ProfileSection icon={<Sparkles size={17} />} id="overview" title={viewLabels[activeView]}>
+              <div className="grid gap-4">
+                <p className="text-base leading-7 text-[var(--profile-text-soft)]">{house.description}</p>
+                {featuredPath.length > 0 && (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {featuredPath.map((item) => {
+                      const content = (
+                        <>
+                          <span className="block text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
+                            {item.label}
+                          </span>
+                          <span className="mt-2 block text-sm font-normal text-[var(--profile-text)]">{item.value}</span>
+                        </>
+                      );
+
+                      return item.href ? (
+                        <a
+                          className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4 transition hover:border-[var(--profile-accent)]"
+                          href={item.href}
+                          key={`${item.label}-${item.value}`}
+                          rel={item.href.startsWith("http") ? "noreferrer" : undefined}
+                          target={item.href.startsWith("http") ? "_blank" : undefined}
+                        >
+                          {content}
+                        </a>
+                      ) : (
+                        <div className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4" key={`${item.label}-${item.value}`}>
+                          {content}
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-                <div className="rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent-soft)] p-4">
-                  <p className="text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-accent-strong)]">Profile state</p>
-                  <p className="mt-2 text-2xl font-normal leading-tight text-[var(--profile-text)]">{statusLabels[house.status]}</p>
-                  <p className="mt-2 text-sm leading-6 text-[var(--profile-text-soft)]">
-                    One identity layer with reusable public sections.
-                  </p>
-                </div>
+                )}
               </div>
             </ProfileSection>
 
-            {links.length > 0 && (
+            {showLinks && links.length > 0 && (
               <ProfileSection icon={<Link2 size={17} />} id="links" title="Links and socials">
                 <div className="grid gap-3 md:grid-cols-2">
                   {coreLinks.map((link, index) => (
@@ -517,7 +516,7 @@ export default function ProfileView({ profile }: Props) {
 
           <aside className="grid content-start gap-5">
             {connectedProfiles.length > 0 && (
-              <Panel icon={<UserRound size={17} />} title="Connected">
+              <Panel icon={<UserRound size={17} />} title="Connected Empires">
                 <div className="grid gap-2">
                   {connectedProfiles.map(({ label, house: relatedHouse }) => (
                     <Link
@@ -541,7 +540,37 @@ export default function ProfileView({ profile }: Props) {
   );
 }
 
-function RoomButton({
+function ProfileSpineBlock({ children, title }: { children: ReactNode; title: string }) {
+  return (
+    <div className="border-b border-[var(--profile-border)] pb-4">
+      <div className="mb-3 text-[10px] font-normal uppercase tracking-[0.18em] text-[var(--profile-muted)]">
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function PillList({ accent = false, items }: { accent?: boolean; items: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span
+          className={`rounded-full border px-3 py-1 text-[10px] font-normal uppercase tracking-[0.12em] ${
+            accent
+              ? "border-[var(--profile-accent)] bg-[var(--profile-accent-soft)] text-[var(--profile-accent-strong)]"
+              : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-text-soft)]"
+          }`}
+          key={item}
+        >
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ViewButton({
   active,
   label,
   onClick,

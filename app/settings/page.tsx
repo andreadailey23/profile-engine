@@ -202,6 +202,10 @@ function ProfileSettings() {
         <Field label="Name" value="Andrea Dailey" />
         <Field label="Handle" value="@andrea-dailey" />
         <Field label="Bio" value="Builder, author, product operator, and public systems maker." />
+        <Field label="Roles" value="Author, Entrepreneur, Builder, Product Builder, Systems Thinker" />
+        <Field label="Vibe" value="Sharp, Minimal, Useful, Funny, High Signal" />
+        <Field label="Highlights" value="Products shipped: 10+, Books published: 2, Systems built: 6" />
+        <Field label="Views" value="Default, Marketplace, Professional" />
         <Field label="Photo" value="Initials for MVP" />
       </SettingsPanel>
     </>
