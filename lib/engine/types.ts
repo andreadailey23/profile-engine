@@ -113,7 +113,18 @@ export type ScheduleItem = {
   title: string;
   detail: string;
   startsAt: string;
-  type: "live" | "podcast" | "event" | "drop" | "office-hours" | "launch" | "booking";
+  type:
+    | "live"
+    | "stream"
+    | "podcast"
+    | "event"
+    | "drop"
+    | "office-hours"
+    | "location-hours"
+    | "availability"
+    | "launch"
+    | "booking";
+  tags: string[];
   url?: string;
   visible: boolean;
 };

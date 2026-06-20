@@ -138,10 +138,11 @@ export default function BuildingEmpiresShell({
     const origin = localOrigin ? productionOrigin : window.location.origin;
     const url = `${origin}${profilePath}`;
 
+    setCopyMessage("Copied");
+
     try {
       const copied = await writeClipboardText(url);
       if (!copied) throw new Error("Copy failed");
-      setCopyMessage("Copied");
       window.setTimeout(() => setCopyMessage("Copy profile link"), 1600);
     } catch {
       setCopyMessage(url);

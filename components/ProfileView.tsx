@@ -7,16 +7,10 @@ import {
   Activity,
   ArrowUpRight,
   CalendarDays,
-  Camera,
-  CheckCircle2,
-  Gamepad2,
   Grid3X3,
   Link2,
   Package,
-  Palette,
-  ShieldCheck,
   Sparkles,
-  Star,
   UserRound,
 } from "lucide-react";
 import type {
@@ -62,61 +56,11 @@ function coverBackground(color: string) {
   `;
 }
 
-const themeOptions = [
-  { id: "clean", label: "Clean", detail: "Simple, readable, profile-first." },
-  { id: "creator", label: "Creator", detail: "More visual energy for media and projects." },
-  { id: "gaming", label: "Gaming", detail: "Vibe-forward for streams, games, and community." },
-  { id: "local", label: "Local", detail: "Good for makers, vendors, services, and favorites." },
-] as const;
-
-const accentOptions = ["#ff6a00", "#d22f2f", "#EC4899", "#8B5CF6", "#148f4b", "#38BDF8", "#8faa88"];
-
-const baseProfileSections = [
-  {
-    title: "Identity",
-    detail: "Name, bio, profile photo, color, handle, and the first thing people should understand.",
-  },
-  {
-    title: "Vibe",
-    detail: "A simple status/mood layer, especially useful for gaming, creators, and personal profiles.",
-  },
-  {
-    title: "Links",
-    detail: "Website, socials, newsletter, channels, stores, and everywhere else people can find you.",
-  },
-  {
-    title: "Projects",
-    detail: "Brands, books, apps, work, communities, local products, or anything you are connected to.",
-  },
-  {
-    title: "Picks",
-    detail: "Shows, vendors, tools, books, places, products, and recommendations from your world.",
-  },
-  {
-    title: "Offers",
-    detail: "Buy, book, hire, support, subscribe, download, join, or request.",
-  },
-  {
-    title: "Updates",
-    detail: "Recent activity, launches, milestones, proof, or what you want people to notice now.",
-  },
-] as const;
-
-function vibeChoicesFor(tags: string[], fallback: string[]) {
-  const hasGaming = tags.some((tag) => ["gaming", "games", "streamer", "community"].includes(tag));
-
-  if (hasGaming) {
-    return ["new game vibes", "ranked grind", "cozy stream", "community night", "creator mode"];
-  }
-
-  return Array.from(new Set([...fallback, "open", "learning", "making", "recommending", "available"])).slice(0, 6);
-}
-
 type Props = {
   profile: NonNullable<ProfileRecord>;
 };
 
-type ProfileRoom = RoomType | "overview" | "best-of";
+type ProfileRoom = RoomType | "overview";
 
 export default function ProfileView({ profile }: Props) {
   const {
@@ -134,14 +78,11 @@ export default function ProfileView({ profile }: Props) {
     updates,
   } = profile;
   const [activeRoom, setActiveRoom] = useState<ProfileRoom>("overview");
-  const [selectedTheme, setSelectedTheme] = useState<(typeof themeOptions)[number]["id"]>("clean");
-  const [selectedVibe, setSelectedVibe] = useState(house.vibes[0] ?? "open");
-  const [selectedAccent, setSelectedAccent] = useState(house.primaryColor);
 
   const roomModules = useMemo(
     () =>
       activeRoom === "overview"
-        ? modules
+        ? []
         : modules.filter((module) => module.room === activeRoom),
     [activeRoom, modules],
   );
@@ -155,17 +96,6 @@ export default function ProfileView({ profile }: Props) {
     [activeRoom, items],
   );
 
-  const bestOfItems = useMemo(() => {
-    const picks = items.filter(
-      (item) =>
-        item.itemType === "pick" ||
-        item.tags.includes("picks") ||
-        item.tags.includes("recommendations"),
-    );
-
-    return picks.length > 0 ? picks : items.slice(0, 3);
-  }, [items]);
-  const visibleBestOf = activeRoom === "overview" || activeRoom === "best-of" ? bestOfItems : [];
   const visibleSchedule = activeRoom === "overview" || activeRoom === "schedule" ? schedule : [];
   const visibleUpdates = activeRoom === "overview" || activeRoom === "activity" ? updates : [];
   const relationships = [
@@ -181,26 +111,17 @@ export default function ProfileView({ profile }: Props) {
     { label: "items", value: items.length },
     { label: "updates", value: updates.length + schedule.length },
   ];
-  const setupChecks = [
-    { label: "identity", done: true },
-    { label: "vibe", done: house.vibes.length > 0 },
-    { label: "sections", done: modules.length > 0 },
-    { label: "links", done: links.length > 0 },
-    { label: "items", done: items.length > 0 },
-    { label: "schedule", done: schedule.length > 0 },
-  ];
-  const vibeChoices = vibeChoicesFor(house.tags, house.vibes);
   const socialLinks = links.filter((link) => link.type === "social");
   const coreLinks = links.filter((link) => link.type !== "social");
   const profileSharePath = `/${house.handle}`;
   const identityTitle = house.type === "person" || house.type === "creator" ? "Who I am" : "What this is";
   const identityCards = [
     {
-      label: "in a sentence",
+      label: "about",
       value: house.description,
     },
     {
-      label: "what I make",
+      label: "work",
       value:
         items.length > 0
           ? items
@@ -211,11 +132,11 @@ export default function ProfileView({ profile }: Props) {
           : visibleRooms.slice(0, 4).map(roomLabel).join(" / "),
     },
     {
-      label: "what I care about",
+      label: "vibe",
       value: Array.from(new Set([...house.vibes, ...house.tags])).slice(0, 7).join(" / "),
     },
     {
-      label: "start here",
+      label: "start",
       value: links[0] ? `${links[0].label} / ${displayUrl(links[0].url)}` : profileSharePath,
     },
   ];
@@ -224,7 +145,7 @@ export default function ProfileView({ profile }: Props) {
     <main className="min-h-full bg-[#050505] text-[#f7f0df]">
       <section className="mx-auto max-w-7xl px-5 py-4 sm:px-8 lg:px-10">
         <article className="overflow-hidden rounded-lg border border-white/10 bg-[#0d0d0d] shadow-[0_22px_90px_rgba(0,0,0,0.28)]">
-          <div className="relative min-h-[230px] border-b border-white/10" style={{ background: coverBackground(selectedAccent) }}>
+          <div className="relative min-h-[230px] border-b border-white/10" style={{ background: coverBackground(house.primaryColor) }}>
             <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:44px_44px]" />
             <div className="absolute left-5 top-5 flex flex-wrap gap-2 sm:left-7">
               <span className={`rounded-full border px-3 py-1 text-[10px] font-normal uppercase tracking-[0.14em] ${statusStyle(house.status)}`}>
@@ -242,8 +163,8 @@ export default function ProfileView({ profile }: Props) {
                 <div
                   className="mb-5 grid size-24 place-items-center rounded-full border-4 border-[#0d0d0d] text-[48px] font-normal leading-none shadow-[0_20px_55px_rgba(0,0,0,0.28)]"
                   style={{
-                    background: selectedAccent,
-                    color: selectedAccent === "#050505" ? "#fff8ed" : "#050505",
+                    background: house.primaryColor,
+                    color: house.primaryColor === "#050505" ? "#fff8ed" : "#050505",
                   }}
                   aria-hidden="true"
                 >
@@ -289,10 +210,11 @@ export default function ProfileView({ profile }: Props) {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
-              <span className="text-[#ffb16b]">{selectedVibe}</span>
-              <span>{selectedTheme} theme</span>
+              {house.vibes.map((vibe) => (
+                <span key={vibe} className="text-[#ffb16b]">{vibe}</span>
+              ))}
               {house.tags.map((tag) => (
-                <span key={tag} style={{ color: selectedAccent === "#050505" ? "#a99f91" : selectedAccent }}>
+                <span key={tag} style={{ color: house.primaryColor === "#050505" ? "#a99f91" : house.primaryColor }}>
                   {tag}
                 </span>
               ))}
@@ -336,13 +258,6 @@ export default function ProfileView({ profile }: Props) {
                     onClick={() => setActiveRoom(room)}
                   />
                 ))}
-                {bestOfItems.length > 0 && (
-                  <RoomButton
-                    active={activeRoom === "best-of"}
-                    label="best of"
-                    onClick={() => setActiveRoom("best-of")}
-                  />
-                )}
               </div>
             </section>
           </aside>
@@ -365,106 +280,6 @@ export default function ProfileView({ profile }: Props) {
                   <p className="mt-2 text-2xl font-normal leading-tight text-white">{statusLabels[house.status]}</p>
                   <p className="mt-2 text-sm leading-6 text-[#c8bdae]">
                     A public profile with sections, links, products, activity, and context.
-                  </p>
-                </div>
-              </div>
-            </ProfileSection>
-
-            <ProfileSection icon={<Grid3X3 size={17} />} id="basics" title="Free profile structure">
-              <div className="grid gap-3 md:grid-cols-2">
-                {baseProfileSections.map((section) => (
-                  <article key={section.title} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
-                    <h2 className="text-base font-normal text-white">{section.title}</h2>
-                    <p className="mt-2 text-sm leading-6 text-[#b8ad9f]">{section.detail}</p>
-                  </article>
-                ))}
-              </div>
-            </ProfileSection>
-
-            <ProfileSection icon={<Palette size={17} />} id="vibe" title="Vibe and style">
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
-                <div className="grid gap-4">
-                  <div>
-                    <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
-                      pick your vibe
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {vibeChoices.map((vibe) => (
-                        <button
-                          key={vibe}
-                          type="button"
-                          onClick={() => setSelectedVibe(vibe)}
-                          className={`min-h-9 rounded-full border px-3 text-xs font-normal uppercase tracking-[0.12em] transition ${
-                            selectedVibe === vibe
-                              ? "border-[#ff6a00] bg-[#ff6a00] text-black"
-                              : "border-white/10 bg-white/[0.035] text-[#c8bdae] hover:border-white/25"
-                          }`}
-                        >
-                          {vibe}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
-                      choose a theme
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {themeOptions.map((option) => (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setSelectedTheme(option.id)}
-                          className={`rounded-md border p-3 text-left transition ${
-                            selectedTheme === option.id
-                              ? "border-[#ff6a00] bg-[#ff6a00]/10"
-                              : "border-white/10 bg-white/[0.035] hover:border-white/25"
-                          }`}
-                        >
-                          <span className="block text-sm font-normal text-white">{option.label}</span>
-                          <span className="mt-1 block text-xs leading-5 text-[#8f8577]">{option.detail}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-md border border-white/10 bg-black/20 p-4">
-                  <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
-                    basic customization
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="grid size-16 place-items-center rounded-full border-2 border-white/10 text-2xl font-normal"
-                      style={{ background: selectedAccent, color: selectedAccent === "#050505" ? "#fff8ed" : "#050505" }}
-                    >
-                      {house.initials}
-                    </span>
-                    <span>
-                      <span className="flex items-center gap-2 text-sm font-normal text-white">
-                        <Camera size={15} aria-hidden="true" />
-                        profile photo
-                      </span>
-                      <span className="mt-1 block text-xs leading-5 text-[#8f8577]">
-                        Upload later. Initials work for the free basic profile.
-                      </span>
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {accentOptions.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        aria-label={`Use ${color}`}
-                        onClick={() => setSelectedAccent(color)}
-                        className={`size-8 rounded-full border transition ${selectedAccent === color ? "border-white" : "border-white/15"}`}
-                        style={{ background: color }}
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-4 text-xs leading-5 text-[#8f8577]">
-                    No custom background upload in the basic version. Start with photo, color, vibe, and theme.
                   </p>
                 </div>
               </div>
@@ -568,9 +383,9 @@ export default function ProfileView({ profile }: Props) {
 
             {visibleSchedule.length > 0 && (
               <ProfileSection icon={<CalendarDays size={17} />} id="schedule" title="Schedule">
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="divide-y divide-white/10 border-t border-white/10">
                   {visibleSchedule.map((item) => (
-                    <ScheduleCard item={item} key={item.id} />
+                    <ScheduleRow item={item} key={item.id} />
                   ))}
                 </div>
               </ProfileSection>
@@ -600,60 +415,9 @@ export default function ProfileView({ profile }: Props) {
               </ProfileSection>
             )}
 
-            {visibleBestOf.length > 0 && (
-              <ProfileSection icon={<Star size={17} />} id="best-of" title="Best of">
-                <p className="mb-4 text-sm leading-6 text-[#b8ad9f]">
-                  A starter place for the recommendations that make a profile feel personal:
-                  tools, shows, local vendors, books, products, places, and anything worth passing along.
-                </p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {visibleBestOf.map((item) => (
-                    <ItemCard item={item} key={item.id} />
-                  ))}
-                </div>
-              </ProfileSection>
-            )}
           </section>
 
           <aside className="grid content-start gap-5">
-            <Panel icon={<ShieldCheck size={17} />} title="Profile setup">
-              <Field label="handle" value={`/${house.handle}`} />
-              <Field label="owner" value={house.owner} />
-              <Field label="visibility" value={house.visibility} />
-              <Field label="status" value={statusLabels[house.status]} />
-              <Field label="type" value={house.type} />
-              <Field label="theme" value={selectedTheme} />
-              <Field label="vibe" value={selectedVibe} />
-            </Panel>
-
-            <Panel icon={<Gamepad2 size={17} />} title="Use cases">
-              <div className="grid gap-2 text-sm leading-6 text-[#c8bdae]">
-                <span>Author platform</span>
-                <span>Gaming profile</span>
-                <span>Local favorites</span>
-                <span>Project portfolio</span>
-                <span>Linktree replacement</span>
-              </div>
-            </Panel>
-
-            <Panel icon={<CheckCircle2 size={17} />} title="Completeness">
-              <div className="grid gap-2">
-                {setupChecks.map((check) => (
-                  <span
-                    key={check.label}
-                    className={`flex min-h-10 items-center justify-between rounded-md border px-3 text-sm font-normal ${
-                      check.done
-                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                        : "border-white/10 bg-white/[0.035] text-[#8f8577]"
-                    }`}
-                  >
-                    {check.label}
-                    <CheckCircle2 size={14} aria-hidden="true" />
-                  </span>
-                ))}
-              </div>
-            </Panel>
-
             {relationships.length > 0 && (
               <Panel icon={<UserRound size={17} />} title="Relationships">
                 <div className="grid gap-2">
@@ -770,37 +534,42 @@ function ItemCard({ item }: { item: HouseItem }) {
   );
 }
 
-function ScheduleCard({ item }: { item: ScheduleItem }) {
+function ScheduleRow({ item }: { item: ScheduleItem }) {
   return (
     <a
       href={item.url ?? "#"}
       target={item.url?.startsWith("http") ? "_blank" : undefined}
       rel={item.url?.startsWith("http") ? "noreferrer" : undefined}
-      className="rounded-md border border-white/10 bg-white/[0.035] p-4 transition hover:border-[#ff6a00]/45"
+      className="grid gap-3 py-4 transition hover:bg-white/[0.025] sm:grid-cols-[140px_minmax(0,1fr)_auto]"
     >
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
-          {formatScheduleDate(item.startsAt)}
+      <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+        {formatScheduleDate(item.startsAt)}
+      </span>
+      <span className="min-w-0">
+        <span className="mb-2 inline-flex border border-white/10 px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] text-[#ffb16b]">
+          {scheduleTypeLabel(item.type)}
         </span>
-        <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#d8cfc0]">
-          {item.type}
+        <span className="block text-base font-normal text-white">{item.title}</span>
+        {item.tags.length > 0 && (
+          <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-normal uppercase tracking-[0.12em] text-[#8f8577]">
+            {item.tags.map((tag) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </span>
+        )}
+      </span>
+      {item.url && (
+        <span className="inline-flex max-w-[180px] items-center gap-2 truncate text-[10px] font-normal uppercase tracking-[0.12em] text-[#ffb16b] sm:justify-self-end">
+          {displayUrl(item.url)}
+          <ArrowUpRight size={13} aria-hidden="true" />
         </span>
-      </div>
-      <h3 className="text-base font-normal text-white">{item.title}</h3>
-      <p className="mt-2 text-sm leading-6 text-[#b8ad9f]">{item.detail}</p>
+      )}
     </a>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-b border-white/10 py-2 first:pt-0 last:border-b-0 last:pb-0">
-      <div className="text-[9px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
-        {label}
-      </div>
-      <div className="mt-1 text-sm font-normal text-[#d8cfc0]">{value}</div>
-    </div>
-  );
+function scheduleTypeLabel(type: ScheduleItem["type"]) {
+  return type.replace(/-/g, " ");
 }
 
 function formatScheduleDate(value: string) {

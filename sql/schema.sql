@@ -104,7 +104,8 @@ create table schedule_items (
   title text not null,
   detail text,
   starts_at timestamptz not null,
-  type text not null check (type in ('live','podcast','event','drop','office-hours','launch','booking')),
+  type text not null check (type in ('live','stream','podcast','event','drop','office-hours','location-hours','availability','launch','booking')),
+  tags text[] not null default '{}',
   url text,
   visible boolean not null default true,
   data jsonb not null default '{}'::jsonb
