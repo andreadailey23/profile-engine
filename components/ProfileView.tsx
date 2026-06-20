@@ -332,10 +332,10 @@ export default function ProfileView({ profile }: Props) {
                     {avatarImage ? <img alt="" className="h-full w-full object-cover" src={avatarImage} /> : house.initials}
                   </div>
                   <div className="min-w-0 pb-1">
-                    <h1 className="max-w-5xl text-[38px] font-normal uppercase leading-[0.95] tracking-normal text-[var(--profile-text)] sm:text-5xl lg:text-6xl">
+                    <h1 className="max-w-3xl text-balance text-[34px] font-normal uppercase leading-[1] tracking-normal text-[var(--profile-text)]">
                       {house.name}
                     </h1>
-                    <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--profile-text-soft)] sm:text-lg">
+                    <p className="mt-3 max-w-3xl text-[15px] leading-6 text-[var(--profile-text-soft)]">
                       {house.shortDescription}
                     </p>
                   </div>
