@@ -72,16 +72,17 @@ export default function ProfilesExplorer({ profiles }: Props) {
     <main className="min-h-full bg-[#050505] text-[#f7f0df]">
       <section className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
         <section className="border-b border-white/10 pb-9">
-          <div className="mb-5 text-[11px] font-normal uppercase tracking-[0.16em] text-[#ff6a00]">
+          <div className="mb-4 text-[11px] font-normal uppercase tracking-[0.16em] text-[#f7f0df]">
             profiles
           </div>
-          <h1 className="max-w-4xl text-[46px] font-normal uppercase leading-[0.95] tracking-normal text-white sm:text-6xl lg:text-7xl">
-            Browse profiles.
+          <h1
+            aria-label="Browse Profiles"
+            className="flex max-w-4xl flex-wrap gap-x-3 text-[46px] font-normal uppercase leading-[0.95] tracking-normal text-[#f7f0df] sm:text-6xl lg:text-7xl"
+            style={{ fontFamily: "var(--font-brand)" }}
+          >
+            <span>Browse</span>
+            <span className="text-[#ff8a2a]">Profiles</span>
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-[#c8bdae] sm:text-lg">
-            A first pass at the profile directory. Click a profile to open the
-            public profile page.
-          </p>
         </section>
 
         <section className="grid gap-4 border-b border-white/10 py-5 lg:grid-cols-[minmax(0,1fr)_180px_180px]">
