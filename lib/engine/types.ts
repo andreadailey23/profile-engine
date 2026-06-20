@@ -6,6 +6,7 @@ export type HouseType =
   | "book"
   | "app"
   | "creator"
+  | "collection"
   | "company"
   | "offer"
   | "community"
@@ -17,7 +18,9 @@ export type HouseStatus =
   | "selling"
   | "testing"
   | "paused"
-  | "planned";
+  | "planned"
+  | "archived"
+  | "coming-soon";
 
 export type RoomType =
   | "identity"
@@ -32,7 +35,15 @@ export type RoomType =
   | "shop"
   | "support"
   | "contact"
+  | "details"
   | "offers"
+  | "use-cases"
+  | "buy"
+  | "updates"
+  | "media"
+  | "community"
+  | "clips"
+  | "marketplace"
   | "games"
   | "streams"
   | "books"
@@ -55,6 +66,10 @@ export type House = {
   rooms: RoomType[];
   visibility: "public" | "private";
 };
+
+export type ProfileEntity = House;
+export type ProfileEntityType = HouseType;
+export type SectionBlock = HouseModule;
 
 export type HouseRelationship = {
   from: string;
@@ -98,6 +113,8 @@ export type HouseItem = {
     | "offer"
     | "collection"
     | "community";
+  kindLabel?: string;
+  displayGroup?: "work" | "product" | "pick";
   title: string;
   description: string;
   url?: string;

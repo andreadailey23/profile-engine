@@ -11,6 +11,8 @@ const statusLabels: Record<HouseStatus, string> = {
   testing: "testing",
   paused: "paused",
   planned: "planned",
+  archived: "archived",
+  "coming-soon": "coming soon",
 };
 
 function statusStyle(status: HouseStatus) {

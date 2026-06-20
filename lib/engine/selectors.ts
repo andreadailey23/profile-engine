@@ -7,7 +7,7 @@ import {
   relationships,
   schedule,
 } from "./seed";
-import type { House, RoomType } from "./types";
+import type { House, HouseType, RoomType } from "./types";
 
 export type ProfileContext =
   | "standalone"
@@ -18,6 +18,21 @@ export type ProfileContext =
   | "habits";
 
 export type ProfileRecord = ReturnType<typeof getProfileRecord>;
+
+export const profileSectionPresets: Record<HouseType, RoomType[]> = {
+  person: ["identity", "positioning", "proof", "work", "products", "links", "schedule", "contact", "activity"],
+  brand: ["products", "posts", "proof", "links", "contact", "activity"],
+  company: ["products", "proof", "offers", "links", "contact", "activity"],
+  product: ["details", "use-cases", "proof", "buy", "updates", "support", "links"],
+  app: ["details", "use-cases", "proof", "support", "links", "activity"],
+  project: ["identity", "proof", "work", "links", "activity"],
+  book: ["details", "proof", "buy", "support", "links", "activity"],
+  creator: ["channels", "schedule", "clips", "links", "community", "support"],
+  collection: ["details", "products", "buy", "support", "links", "activity"],
+  offer: ["details", "proof", "buy", "support", "links"],
+  community: ["channels", "schedule", "community", "links", "support", "activity"],
+  studio: ["channels", "media", "products", "schedule", "links", "activity"],
+};
 
 export const profileContexts: Array<{
   id: ProfileContext;
@@ -83,14 +98,24 @@ export function getContext(context: ProfileContext) {
   return profileContexts.find((item) => item.id === context) ?? profileContexts[0];
 }
 
+function orderedRoomsForProfile(house: House, context: ProfileContext) {
+  const contextRooms = new Set(getContext(context).rooms);
+  const enabledRooms = house.rooms.filter((room) => context === "standalone" || contextRooms.has(room));
+  const enabled = new Set(enabledRooms);
+  const preset = profileSectionPresets[house.type] ?? profileSectionPresets.brand;
+  const ordered = preset.filter((room) => enabled.has(room));
+  const extras = enabledRooms.filter((room) => !ordered.includes(room));
+
+  return [...ordered, ...extras];
+}
+
 export function getProfileRecord(handle: string, context: ProfileContext = "standalone") {
   const house = getProfileByHandle(handle);
   if (!house) return undefined;
 
   const byId = (id: string) => houses.find((item) => item.id === id);
   const isHouse = (item: House | undefined): item is House => Boolean(item);
-  const contextRooms = new Set(getContext(context).rooms);
-  const visibleRooms = house.rooms.filter((room) => context === "standalone" || contextRooms.has(room));
+  const visibleRooms = orderedRoomsForProfile(house, context);
 
   return {
     house,

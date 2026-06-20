@@ -16,6 +16,7 @@ import {
 import type {
   HouseItem,
   HouseStatus,
+  HouseType,
   RoomType,
   ScheduleItem,
 } from "@/lib/engine/types";
@@ -28,6 +29,8 @@ const statusLabels: Record<HouseStatus, string> = {
   testing: "testing",
   paused: "paused",
   planned: "planned",
+  archived: "archived",
+  "coming-soon": "coming soon",
 };
 
 function statusStyle(status: HouseStatus) {
@@ -44,6 +47,33 @@ function displayUrl(url: string) {
 
 function roomLabel(room: RoomType) {
   return room.replace(/-/g, " ");
+}
+
+function profileRoomLabel(room: RoomType, type: HouseType) {
+  if (room === "posts") return "content";
+  if (room === "shop" || room === "buy") return "buy";
+  if (room === "books" && type !== "person") return "buy";
+  if (room === "use-cases") return "use cases";
+  return roomLabel(room);
+}
+
+function itemDisplayGroup(item: HouseItem) {
+  if (item.displayGroup) return item.displayGroup;
+  if (item.itemType === "pick") return "pick";
+  if (["project", "media", "service", "community"].includes(item.itemType)) return "work";
+  return "product";
+}
+
+function workSectionTitle(name: string, type: HouseType) {
+  if (type === "person") return `Built by ${name.split(" ")[0]}`;
+  if (type === "creator" || type === "studio") return "Work and channels";
+  return "Work";
+}
+
+function productsSectionTitle(type: HouseType) {
+  if (type === "book" || type === "collection" || type === "offer") return "Buy";
+  if (type === "product" || type === "app") return "Use / buy";
+  return "Products";
 }
 
 function coverBackground(color: string) {
@@ -87,29 +117,37 @@ export default function ProfileView({ profile }: Props) {
     [activeRoom, modules],
   );
 
-  const visibleItems = useMemo(
-    () =>
-      activeRoom === "overview" ||
-      ["products", "shop", "books", "channels", "games", "work", "offers", "support"].includes(activeRoom)
-        ? items.filter((item) => item.itemType !== "pick")
-        : [],
-    [activeRoom, items],
+  const workItems = useMemo(
+    () => items.filter((item) => itemDisplayGroup(item) === "work"),
+    [items],
   );
+  const productItems = useMemo(
+    () => items.filter((item) => itemDisplayGroup(item) === "product"),
+    [items],
+  );
+  const showWorkItems =
+    activeRoom === "overview" ||
+    ["work", "channels", "media", "games", "streams", "community"].includes(activeRoom);
+  const showProductItems =
+    activeRoom === "overview" ||
+    ["products", "shop", "books", "offers", "support", "buy"].includes(activeRoom);
+  const visibleWorkItems = showWorkItems ? workItems : [];
+  const visibleProductItems = showProductItems ? productItems : [];
 
   const visibleSchedule = activeRoom === "overview" || activeRoom === "schedule" ? schedule : [];
   const visibleUpdates = activeRoom === "overview" || activeRoom === "activity" ? updates : [];
-  const relationships = [
+  const connectedProfiles = [
     ...parentHouses.map((item) => ({ label: "part of", house: item })),
-    ...ownerHouses.map((item) => ({ label: "owned by", house: item })),
-    ...ownsHouses.map((item) => ({ label: "runs", house: item })),
+    ...ownerHouses.map((item) => ({ label: "built by", house: item })),
+    ...ownsHouses.map((item) => ({ label: "connected", house: item })),
     ...childHouses.map((item) => ({ label: "contains", house: item })),
-    ...relatedHouses.map((item) => ({ label: "related", house: item })),
+    ...relatedHouses.map((item) => ({ label: "also connected", house: item })),
   ];
   const overviewStats = [
     { label: "sections", value: visibleRooms.length },
     { label: "links", value: links.length },
-    { label: "items", value: items.length },
-    { label: "updates", value: updates.length + schedule.length },
+    { label: "work", value: workItems.length },
+    { label: "products", value: productItems.length },
   ];
   const socialLinks = links.filter((link) => link.type === "social");
   const coreLinks = links.filter((link) => link.type !== "social");
@@ -123,9 +161,8 @@ export default function ProfileView({ profile }: Props) {
     {
       label: "work",
       value:
-        items.length > 0
-          ? items
-              .filter((item) => item.itemType !== "pick")
+        workItems.length > 0
+          ? workItems
               .slice(0, 4)
               .map((item) => item.title)
               .join(" / ")
@@ -254,7 +291,7 @@ export default function ProfileView({ profile }: Props) {
                   <RoomButton
                     key={room}
                     active={activeRoom === room}
-                    label={roomLabel(room)}
+                    label={profileRoomLabel(room, house.type)}
                     onClick={() => setActiveRoom(room)}
                   />
                 ))}
@@ -279,7 +316,7 @@ export default function ProfileView({ profile }: Props) {
                   <p className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#ffb16b]">Profile state</p>
                   <p className="mt-2 text-2xl font-normal leading-tight text-white">{statusLabels[house.status]}</p>
                   <p className="mt-2 text-sm leading-6 text-[#c8bdae]">
-                    A public profile with sections, links, products, activity, and context.
+                    One identity layer with reusable public sections.
                   </p>
                 </div>
               </div>
@@ -343,7 +380,7 @@ export default function ProfileView({ profile }: Props) {
                         className="mb-2 text-[10px] font-normal uppercase tracking-[0.16em]"
                         style={{ color: house.primaryColor === "#050505" ? "#a99f91" : house.primaryColor }}
                       >
-                        {roomLabel(module.room)}
+                        {profileRoomLabel(module.room, house.type)}
                       </div>
                       <h2 className="text-[25px] font-normal uppercase leading-tight text-white">{module.title}</h2>
                       <p className="mt-3 text-sm leading-7 text-[#c8bdae]">{module.body}</p>
@@ -371,10 +408,20 @@ export default function ProfileView({ profile }: Props) {
               </ProfileSection>
             )}
 
-            {visibleItems.length > 0 && (
-              <ProfileSection icon={<Package size={17} />} id="products" title="Products and offers">
+            {visibleWorkItems.length > 0 && (
+              <ProfileSection icon={<Grid3X3 size={17} />} id="work" title={workSectionTitle(house.name, house.type)}>
                 <div className="grid gap-3 md:grid-cols-2">
-                  {visibleItems.map((item) => (
+                  {visibleWorkItems.map((item) => (
+                    <ItemCard item={item} key={item.id} />
+                  ))}
+                </div>
+              </ProfileSection>
+            )}
+
+            {visibleProductItems.length > 0 && (
+              <ProfileSection icon={<Package size={17} />} id="products" title={productsSectionTitle(house.type)}>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {visibleProductItems.map((item) => (
                     <ItemCard item={item} key={item.id} />
                   ))}
                 </div>
@@ -418,10 +465,10 @@ export default function ProfileView({ profile }: Props) {
           </section>
 
           <aside className="grid content-start gap-5">
-            {relationships.length > 0 && (
-              <Panel icon={<UserRound size={17} />} title="Relationships">
+            {connectedProfiles.length > 0 && (
+              <Panel icon={<UserRound size={17} />} title="Connected">
                 <div className="grid gap-2">
-                  {relationships.map(({ label, house: relatedHouse }) => (
+                  {connectedProfiles.map(({ label, house: relatedHouse }) => (
                     <Link
                       key={`${label}-${relatedHouse.id}`}
                       href={`/${relatedHouse.handle}`}
@@ -511,7 +558,7 @@ function ItemCard({ item }: { item: HouseItem }) {
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
-          {item.itemType}
+          {item.kindLabel ?? item.itemType}
         </span>
         <span className={`border px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] ${statusStyle(item.status)}`}>
           {statusLabels[item.status]}
