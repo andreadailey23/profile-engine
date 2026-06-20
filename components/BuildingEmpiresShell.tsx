@@ -5,24 +5,18 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  AppWindow,
-  BookOpen,
   Check,
+  ChevronDown,
   Copy,
   ExternalLink,
-  Gamepad2,
   Home,
   Info,
-  MapPin,
   Moon,
-  Newspaper,
   Search,
   Settings,
   ShoppingBag,
   Star,
   Sun,
-  Target,
-  Plug,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
@@ -32,7 +26,12 @@ import type { ProfileThemeId } from "@/lib/engine/types";
 type NavItem = {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  appMark?: {
+    color: string;
+    letter: string;
+    textColor: string;
+  };
 };
 
 type AvatarSettings = {
@@ -53,14 +52,51 @@ const siteNav: NavItem[] = [
 ];
 
 const appsConnectorNav: NavItem[] = [
-  { href: "/building-empires", label: "Profile Engine", icon: UserRound },
-  { href: "https://tryatla.co", label: "Atla", icon: AppWindow },
-  { href: "https://tryatla.co/signin?mode=signup&next=/ai-inventory", label: "AI Inventory", icon: Plug },
-  { href: "https://tryimprint.co", label: "Imprint", icon: BookOpen },
-  { href: "https://getinbetween.app", label: "Inbetween", icon: MapPin },
-  { href: "https://streamo.gg", label: "Streamo", icon: Gamepad2 },
-  { href: "https://habitsthatmatter.com", label: "Habits That Matter", icon: Target },
-  { href: "https://whatdeployed.com", label: "WhatDeployed", icon: Newspaper },
+  {
+    href: "/building-empires",
+    label: "Profile Engine",
+    appMark: { color: "#ff6a00", letter: "B", textColor: "#111111" },
+  },
+  {
+    href: "https://tryatla.co",
+    label: "Atla",
+    appMark: { color: "#38bdf8", letter: "A", textColor: "#071018" },
+  },
+  {
+    href: "https://tryatla.co/signin?mode=signup&next=/ai-inventory",
+    label: "AI Inventory",
+    appMark: { color: "#38bdf8", letter: "AI", textColor: "#071018" },
+  },
+  {
+    href: "https://tryimprint.co",
+    label: "Imprint",
+    appMark: { color: "#ffae00", letter: "i", textColor: "#0a0a0a" },
+  },
+  {
+    href: "https://tryatla.co/signin?mode=signup&module=mvp&next=/mvp",
+    label: "MVP",
+    appMark: { color: "#6366f1", letter: "M", textColor: "#ffffff" },
+  },
+  {
+    href: "https://getinbetween.app",
+    label: "Inbetween",
+    appMark: { color: "#a8c4a2", letter: "I", textColor: "#07110d" },
+  },
+  {
+    href: "https://streamo.gg",
+    label: "Streamo",
+    appMark: { color: "#ec4899", letter: "S", textColor: "#111111" },
+  },
+  {
+    href: "https://habitsthatmatter.com",
+    label: "Habits That Matter",
+    appMark: { color: "#a8c4a2", letter: "H", textColor: "#07110d" },
+  },
+  {
+    href: "https://whatdeployed.com",
+    label: "WhatDeployed",
+    appMark: { color: "#148f4b", letter: "W", textColor: "#ffffff" },
+  },
 ];
 
 const socialLinks = [
@@ -88,16 +124,47 @@ function NavItems({ items, pathname }: { items: NavItem[]; pathname: string }) {
   return items.map((item) => {
     const Icon = item.icon;
     const external = item.href.startsWith("http");
+    const appMark = item.appMark;
 
     return (
       <Link
-        className={isActivePath(pathname, item.href) ? "active" : undefined}
+        className={[
+          isActivePath(pathname, item.href) ? "active" : "",
+          appMark ? "aw-app-link" : "",
+        ].filter(Boolean).join(" ") || undefined}
         href={item.href}
         key={item.href}
         rel={external ? "noopener noreferrer" : undefined}
         target={external ? "_blank" : undefined}
       >
-        <Icon size={16} strokeWidth={2} aria-hidden="true" />
+        {appMark ? (
+          <span
+            aria-hidden="true"
+            className="aw-app-mark"
+            data-long={appMark.letter.length > 1 ? "true" : undefined}
+            style={
+              {
+                backgroundColor: appMark.color,
+                borderRadius: 6,
+                boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.12)",
+                color: appMark.textColor,
+                display: "grid",
+                flex: "0 0 24px",
+                fontSize: appMark.letter.length > 1 ? 9 : 12,
+                fontWeight: 800,
+                height: 24,
+                letterSpacing: 0,
+                lineHeight: 1,
+                placeItems: "center",
+                width: 24,
+              } as CSSProperties
+            }
+          >
+            {appMark.letter}
+          </span>
+        ) : Icon ? (
+          <Icon size={16} strokeWidth={2} aria-hidden="true" />
+        ) : null}
         <span>{item.label}</span>
       </Link>
     );
@@ -415,7 +482,10 @@ export default function BuildingEmpiresShell({
             <NavItems items={siteNav} pathname={pathname} />
           </div>
           <div className="aw-nav-group">
-            <div className="aw-nav-label">Apps &amp; Connectors</div>
+            <div className="aw-nav-label aw-nav-label-row">
+              <span>Apps &amp; Connectors</span>
+              <ChevronDown size={12} strokeWidth={1.8} aria-hidden="true" />
+            </div>
             <NavItems items={appsConnectorNav} pathname={pathname} />
           </div>
         </nav>
