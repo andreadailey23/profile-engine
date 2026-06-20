@@ -19,11 +19,11 @@
   --text-soft: #d8cfc0;
   --text-muted: #8f8577;
   --radius: 8px;
-  --sidebar-w: 236px;
+  --sidebar-w: 248px;
   --topbar-h: 56px;
   --footer-h: 46px;
   --font-ui: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
-  --font-brand: var(--font-geist-sans), "Arial Narrow", var(--font-ui);
+  --font-brand: Impact, "Arial Narrow", var(--font-geist-sans), var(--font-ui);
 }
 
 html[data-theme="light"] {
@@ -89,6 +89,7 @@ button {
 .aw-side {
   position: sticky;
   top: 0;
+  z-index: 60;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -115,28 +116,28 @@ button {
   align-items: center;
   justify-content: flex-start;
   border-bottom: 1px solid var(--border);
-  padding: 0 46px 0 14px;
+  padding: 0 18px;
 }
 
 .aw-brand {
   min-width: 0;
-  min-height: 36px;
+  min-height: 32px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .aw-mark {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
-  flex: 0 0 32px;
+  flex: 0 0 36px;
   border-radius: 8px;
   background: var(--accent);
   color: #1f1a16;
   font-family: var(--font-brand);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 400;
   line-height: 1;
   letter-spacing: 0;
@@ -144,14 +145,13 @@ button {
 
 .aw-name {
   min-width: 0;
-  max-width: 100%;
-  height: 32px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
-  gap: 0;
-  color: color-mix(in srgb, var(--text) 78%, transparent);
+  gap: 0.04em;
+  color: color-mix(in srgb, var(--text) 74%, transparent);
   font-family: var(--font-brand);
-  font-size: 13px;
+  font-size: 23px;
   font-weight: 400;
   line-height: 1;
   letter-spacing: 0;
@@ -173,24 +173,32 @@ button {
 .aw-rail-toggle {
   position: absolute;
   top: 12px;
-  right: 8px;
+  right: -40px;
   z-index: 80;
-  width: 32px;
+  width: 40px;
   height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-card);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--accent-strong);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   line-height: 1;
   padding: 0;
   transition: color 0.2s ease;
 }
 
 .aw-rail-toggle:hover {
+  background: transparent;
   color: var(--text);
+}
+
+.aw-rail-toggle span {
+  transform: translate(1px, -1px);
 }
 
 .rail-collapsed .aw-brand-row {
@@ -199,11 +207,8 @@ button {
 }
 
 .rail-collapsed .aw-brand {
-  display: none;
-}
-
-.rail-collapsed .aw-rail-toggle {
-  right: 16px;
+  justify-content: center;
+  gap: 0;
 }
 
 .rail-collapsed .aw-name,
@@ -344,7 +349,7 @@ button {
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
-  padding: 0 clamp(18px, 3vw, 32px);
+  padding: 0 clamp(18px, 3vw, 32px) 0 54px;
 }
 
 .site-topbar-spacer {
@@ -459,19 +464,60 @@ button {
   width: 32px;
   min-width: 32px;
   flex: 0 0 32px;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 999px;
-  background: var(--accent);
-  color: #1f1a16;
-  font-size: 11px;
-  font-weight: 600;
+  background: transparent;
   padding: 0;
 }
 
 .site-account-nav .site-account-trigger:hover {
-  border-color: var(--accent-strong);
-  background: var(--accent-strong);
+  background: transparent;
+}
+
+.site-avatar-input {
+  display: none;
+}
+
+.site-avatar-preview {
+  --avatar-color: var(--accent);
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--avatar-color);
+  border-radius: 999px;
   color: #1f1a16;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.site-avatar-preview-sm {
+  width: 32px;
+  height: 32px;
+  font-size: 11px;
+}
+
+.site-avatar-preview-md {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  font-size: 13px;
+}
+
+.site-avatar-preview.is-fill {
+  background: var(--avatar-color);
+}
+
+.site-avatar-preview.is-outline {
+  background: transparent;
+  color: var(--avatar-color);
+}
+
+.site-avatar-preview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .site-settings-menu {
@@ -495,17 +541,20 @@ button {
   padding: 14px;
 }
 
-.site-settings-avatar {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 36px;
+.site-account-nav .site-settings-avatar-button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  border: 0;
   border-radius: 999px;
-  background: var(--accent);
-  color: #1f1a16;
-  font-size: 12px;
-  font-weight: 600;
+  background: transparent;
+  padding: 0;
+}
+
+.site-account-nav .site-settings-avatar-button:hover {
+  background: transparent;
 }
 
 .site-settings-who {
@@ -548,6 +597,84 @@ button {
   line-height: 1;
   padding: 8px 10px 6px;
   text-transform: uppercase;
+}
+
+.site-avatar-tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 10px 8px;
+}
+
+.site-account-nav .site-avatar-action,
+.site-account-nav .site-avatar-controls button {
+  width: 100%;
+  min-height: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-soft);
+  font-size: 12px;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+.site-account-nav .site-avatar-action:hover,
+.site-account-nav .site-avatar-controls button:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.site-account-nav .site-avatar-action:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.site-account-nav .site-avatar-action:disabled:hover {
+  border-color: var(--border);
+  background: var(--bg-card);
+  color: var(--text-soft);
+}
+
+.site-avatar-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 10px 8px;
+}
+
+.site-account-nav .site-avatar-controls button {
+  text-transform: capitalize;
+}
+
+.site-account-nav .site-avatar-controls button.is-active {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.site-avatar-swatches {
+  display: flex;
+  gap: 7px;
+  padding: 0 10px 8px;
+}
+
+.site-account-nav .site-avatar-swatches button {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  flex: 0 0 22px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  padding: 0;
+}
+
+.site-account-nav .site-avatar-swatches button.is-active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .site-account-nav .site-settings-row {
@@ -700,14 +827,39 @@ button {
   white-space: nowrap;
 }
 
-.site-footer-parent {
-  justify-self: end;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .site-footer a:hover {
   color: var(--text-soft);
+}
+
+.site-social-links {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.site-social-links a {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--text-muted);
+  opacity: 0.88;
+}
+
+.site-social-links svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: currentColor;
+  flex: 0 0 16px;
+}
+
+.site-social-links a:first-child svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
 }
 
 @media (max-width: 720px) {
@@ -749,8 +901,8 @@ button {
   }
 
   .site-footer,
-  .site-footer-parent,
-  .site-footer-links {
+  .site-footer-links,
+  .site-social-links {
     justify-content: flex-start;
     justify-self: start;
   }

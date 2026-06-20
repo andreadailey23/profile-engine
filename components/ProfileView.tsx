@@ -83,8 +83,33 @@ function profileThemeStorageKey(handle: string) {
   return `building-empires-profile-theme-${handle}`;
 }
 
+function profileAvatarStorageKey(handle: string) {
+  return `building-empires-profile-avatar-${handle}`;
+}
+
 function validThemeId(value: string | null): ProfileThemeId | undefined {
   return profileThemes.some((theme) => theme.id === value) ? (value as ProfileThemeId) : undefined;
+}
+
+type AvatarSettings = {
+  color: string;
+  image?: string;
+  mode: "fill" | "outline";
+};
+
+function parseAvatarSettings(value: string | null): AvatarSettings | undefined {
+  if (!value) return undefined;
+
+  try {
+    const parsed = JSON.parse(value) as Partial<AvatarSettings>;
+    const mode = parsed.mode === "outline" ? "outline" : "fill";
+    const color = typeof parsed.color === "string" ? parsed.color : "#ff6a00";
+    const image = typeof parsed.image === "string" && parsed.image.startsWith("data:image/") ? parsed.image : undefined;
+
+    return { color, image, mode };
+  } catch {
+    return undefined;
+  }
 }
 
 function profileThemeVars(theme: ReturnType<typeof getProfileTheme>) {
@@ -165,6 +190,7 @@ export default function ProfileView({ profile }: Props) {
       ? house.defaultView
       : selectedViews[0] ?? "default";
   const [activeView, setActiveView] = useState<ProfileViewType>(initialView);
+  const [avatarOverride, setAvatarOverride] = useState<AvatarSettings | undefined>();
   const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
   const theme = getProfileTheme(themeOverride ?? house.themeId);
 
@@ -186,6 +212,27 @@ export default function ProfileView({ profile }: Props) {
     return () => {
       window.removeEventListener("storage", syncStoredTheme);
       window.removeEventListener("buildingempires:profile-theme", onThemeChange);
+    };
+  }, [house.handle]);
+
+  useEffect(() => {
+    function syncStoredAvatar() {
+      setAvatarOverride(parseAvatarSettings(window.localStorage.getItem(profileAvatarStorageKey(house.handle))));
+    }
+
+    function onAvatarChange(event: Event) {
+      const detail = (event as CustomEvent<{ avatar?: AvatarSettings; handle?: string }>).detail;
+      if (detail?.handle !== house.handle) return;
+      setAvatarOverride(detail.avatar);
+    }
+
+    syncStoredAvatar();
+    window.addEventListener("storage", syncStoredAvatar);
+    window.addEventListener("buildingempires:profile-avatar", onAvatarChange);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredAvatar);
+      window.removeEventListener("buildingempires:profile-avatar", onAvatarChange);
     };
   }, [house.handle]);
 
@@ -220,6 +267,9 @@ export default function ProfileView({ profile }: Props) {
   const socialLinks = links.filter((link) => link.type === "social");
   const coreLinks = links.filter((link) => link.type !== "social");
   const showLinks = activeRooms.includes("links");
+  const avatarColor = avatarOverride?.color ?? house.primaryColor;
+  const avatarImage = avatarOverride?.image;
+  const avatarIsOutline = avatarOverride?.mode === "outline" && !avatarImage;
   const featuredPath = [
     links[0] && { label: "Start here", value: links[0].label, href: links[0].url },
     workItems[0] && { label: "Explore", value: workItems[0].title, href: workItems[0].url },
@@ -239,14 +289,15 @@ export default function ProfileView({ profile }: Props) {
             <div className="-mt-14 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
               <div className="min-w-0">
                 <div
-                  className="relative z-20 mb-5 grid size-24 place-items-center rounded-full border-4 border-[var(--profile-surface)] text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
+                  className="relative z-20 mb-5 grid size-24 place-items-center overflow-hidden rounded-full border-4 text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
                   style={{
-                    background: house.primaryColor,
-                    color: theme.colors.buttonText,
+                    background: avatarImage ? theme.colors.surface : avatarIsOutline ? "transparent" : avatarColor,
+                    borderColor: avatarIsOutline ? avatarColor : theme.colors.surface,
+                    color: avatarIsOutline ? avatarColor : theme.colors.buttonText,
                   }}
                   aria-hidden="true"
                 >
-                  {house.initials}
+                  {avatarImage ? <img alt="" className="h-full w-full object-cover" src={avatarImage} /> : house.initials}
                 </div>
                 <div className="mb-3 text-sm font-normal text-[var(--profile-muted)]">
                   @{house.handle}

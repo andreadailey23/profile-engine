@@ -206,7 +206,7 @@ function ProfileSettings() {
         <Field label="Vibe" value="Sharp, Minimal, Useful, Funny, High Signal" />
         <Field label="Highlights" value="Products shipped: 10+, Books published: 2, Systems built: 6" />
         <Field label="Views" value="Default, Marketplace, Professional" />
-        <Field label="Photo" value="Initials for MVP" />
+        <Field label="Avatar" value="Photo upload, initials fill or outline, and color" />
       </SettingsPanel>
     </>
   );
