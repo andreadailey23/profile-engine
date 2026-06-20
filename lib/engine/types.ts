@@ -1,3 +1,9 @@
+export type ProfileThemeId =
+  | "obsidian-ember"
+  | "liquid-graphite"
+  | "porcelain-ink"
+  | "garden-lumen";
+
 export type HouseType =
   | "person"
   | "brand"
@@ -59,6 +65,7 @@ export type House = {
   description: string;
   initials: string;
   primaryColor: string;
+  themeId?: ProfileThemeId;
   status: HouseStatus;
   owner: string;
   tags: string[];

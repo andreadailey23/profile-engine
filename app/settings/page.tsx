@@ -14,11 +14,15 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
+import { getProfileTheme, profileThemes } from "@/lib/engine/themes";
+import type { ProfileThemeId } from "@/lib/engine/types";
 
 type SettingsTab = "profile" | "links" | "schedule" | "appearance" | "sharing" | "account";
 
 const profilePath = "/andrea-dailey";
+const profileHandle = "andrea-dailey";
 const productionOrigin = "https://buildingempires.co";
+const profileThemeStorageKey = `building-empires-profile-theme-${profileHandle}`;
 
 const tabs: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
   { key: "profile", label: "Profile", icon: UserRound },
@@ -30,6 +34,7 @@ const tabs: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
 ];
 
 const validTabs = new Set<SettingsTab>(tabs.map((tab) => tab.key));
+const validThemeIds = new Set<ProfileThemeId>(profileThemes.map((theme) => theme.id));
 
 async function writeClipboardText(text: string) {
   try {
@@ -68,11 +73,19 @@ function currentProfileUrl() {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [copyLabel, setCopyLabel] = useState("Copy");
+  const [selectedTheme, setSelectedTheme] = useState<ProfileThemeId>("obsidian-ember");
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
     if (!tab || !validTabs.has(tab as SettingsTab)) return;
     window.requestAnimationFrame(() => setActiveTab(tab as SettingsTab));
+  }, []);
+
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem(profileThemeStorageKey);
+    if (storedTheme && validThemeIds.has(storedTheme as ProfileThemeId)) {
+      window.requestAnimationFrame(() => setSelectedTheme(storedTheme as ProfileThemeId));
+    }
   }, []);
 
   function selectTab(tab: SettingsTab) {
@@ -96,6 +109,16 @@ export default function SettingsPage() {
     window.setTimeout(() => setCopyLabel("Copy"), 1600);
   }
 
+  function selectTheme(themeId: ProfileThemeId) {
+    setSelectedTheme(themeId);
+    window.localStorage.setItem(profileThemeStorageKey, themeId);
+    window.dispatchEvent(
+      new CustomEvent("buildingempires:profile-theme", {
+        detail: { handle: profileHandle, themeId },
+      }),
+    );
+  }
+
   return (
     <main className="min-h-full bg-[#050505] text-[#f7f0df]">
       <div className="flex min-h-[calc(100vh-var(--topbar-h)-var(--footer-h))]">
@@ -114,7 +137,7 @@ export default function SettingsPage() {
             {activeTab === "profile" && <ProfileSettings />}
             {activeTab === "links" && <LinksSettings />}
             {activeTab === "schedule" && <ScheduleSettings />}
-            {activeTab === "appearance" && <AppearanceSettings />}
+            {activeTab === "appearance" && <AppearanceSettings selectedTheme={selectedTheme} onSelectTheme={selectTheme} />}
             {activeTab === "sharing" && <SharingSettings copyLabel={copyLabel} onCopy={copyProfileLink} />}
             {activeTab === "account" && <AccountSettings />}
           </section>
@@ -211,16 +234,112 @@ function ScheduleSettings() {
   );
 }
 
-function AppearanceSettings() {
+function AppearanceSettings({
+  selectedTheme,
+  onSelectTheme,
+}: {
+  selectedTheme: ProfileThemeId;
+  onSelectTheme: (themeId: ProfileThemeId) => void;
+}) {
+  const activeTheme = getProfileTheme(selectedTheme);
+
   return (
     <>
-      <SettingsHeader eyebrow="appearance" title="Theme" />
-      <SettingsPanel>
-        <Field label="Vibe" value="Builder" />
-        <Field label="Theme" value="Dark" />
-        <Field label="Accent" value="#ff6a00" />
-        <Field label="Logo" value="B block" />
-      </SettingsPanel>
+      <SettingsHeader eyebrow="appearance" title="Themes" />
+      <section className="grid gap-4">
+        <div className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
+          <div className="grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center">
+            <div>
+              <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
+                active
+              </div>
+              <div className="mt-1 text-xl font-normal uppercase leading-none text-white">
+                {activeTheme.name}
+              </div>
+            </div>
+            <div className="grid grid-cols-5 overflow-hidden rounded-md border border-white/10">
+              {Object.entries(activeTheme.colors)
+                .filter(([key]) => ["canvas", "surface", "text", "accent", "accentStrong"].includes(key))
+                .map(([key, color]) => (
+                  <span
+                    aria-label={key}
+                    className="h-11"
+                    key={key}
+                    style={{ background: color }}
+                  />
+                ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          {profileThemes.map((theme) => {
+            const active = selectedTheme === theme.id;
+
+            return (
+              <button
+                className={`group rounded-lg border p-4 text-left transition ${
+                  active
+                    ? "border-[#ff6a00] bg-[#ff6a00]/10"
+                    : "border-white/10 bg-[#0d0d0d] hover:border-white/25"
+                }`}
+                key={theme.id}
+                onClick={() => onSelectTheme(theme.id)}
+                type="button"
+              >
+                <div
+                  className="mb-4 h-28 overflow-hidden rounded-md border"
+                  style={{
+                    background: `
+                      linear-gradient(120deg, ${theme.colors.accentSoft}, transparent 54%),
+                      ${theme.colors.canvas}
+                    `,
+                    borderColor: theme.colors.border,
+                  }}
+                >
+                  <div className="grid h-full grid-cols-[1fr_72px]">
+                    <div className="p-4">
+                      <div
+                        className="mb-3 h-3 w-20 rounded-full"
+                        style={{ background: theme.colors.accent }}
+                      />
+                      <div
+                        className="mb-2 h-2 w-32 rounded-full"
+                        style={{ background: theme.colors.text }}
+                      />
+                      <div
+                        className="h-2 w-24 rounded-full"
+                        style={{ background: theme.colors.muted }}
+                      />
+                    </div>
+                    <div
+                      className="border-l"
+                      style={{ borderColor: theme.colors.border, background: theme.colors.surface }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#ffb16b]">
+                      {theme.label}
+                    </div>
+                    <h2 className="mt-1 text-xl font-normal uppercase leading-none text-white">
+                      {theme.name}
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-[#b8ad9f]">{theme.description}</p>
+                  </div>
+                  <span
+                    className={`mt-1 size-4 shrink-0 rounded-full border ${
+                      active ? "border-[#ff6a00] bg-[#ff6a00]" : "border-white/20"
+                    }`}
+                    aria-hidden="true"
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
     </>
   );
 }

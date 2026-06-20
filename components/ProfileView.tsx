@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -17,9 +17,11 @@ import type {
   HouseItem,
   HouseStatus,
   HouseType,
+  ProfileThemeId,
   RoomType,
   ScheduleItem,
 } from "@/lib/engine/types";
+import { getProfileTheme, profileThemes } from "@/lib/engine/themes";
 import type { ProfileRecord } from "@/lib/engine/selectors";
 
 const statusLabels: Record<HouseStatus, string> = {
@@ -76,13 +78,40 @@ function productsSectionTitle(type: HouseType) {
   return "Products";
 }
 
-function coverBackground(color: string) {
+function profileThemeStorageKey(handle: string) {
+  return `building-empires-profile-theme-${handle}`;
+}
+
+function validThemeId(value: string | null): ProfileThemeId | undefined {
+  return profileThemes.some((theme) => theme.id === value) ? (value as ProfileThemeId) : undefined;
+}
+
+function profileThemeVars(theme: ReturnType<typeof getProfileTheme>) {
+  return {
+    "--profile-bg": theme.colors.canvas,
+    "--profile-surface": theme.colors.surface,
+    "--profile-surface-soft": theme.colors.surfaceSoft,
+    "--profile-surface-lift": theme.colors.surfaceLift,
+    "--profile-border": theme.colors.border,
+    "--profile-border-strong": theme.colors.borderStrong,
+    "--profile-text": theme.colors.text,
+    "--profile-text-soft": theme.colors.textSoft,
+    "--profile-muted": theme.colors.muted,
+    "--profile-accent": theme.colors.accent,
+    "--profile-accent-strong": theme.colors.accentStrong,
+    "--profile-accent-soft": theme.colors.accentSoft,
+    "--profile-button-text": theme.colors.buttonText,
+    "--profile-shadow": theme.colors.shadow,
+    "--profile-grid": theme.colors.grid,
+  } as CSSProperties;
+}
+
+function coverBackground(color: string, theme: ReturnType<typeof getProfileTheme>) {
   const accent = color === "#050505" ? "#ff6a00" : color;
 
   return `
-    radial-gradient(circle at 16% 18%, ${accent}66, transparent 28%),
-    radial-gradient(circle at 86% 16%, rgba(255, 255, 255, 0.16), transparent 24%),
-    linear-gradient(135deg, ${accent}33 0%, rgba(255,255,255,0.06) 42%, rgba(5,5,5,0.92) 100%)
+    linear-gradient(118deg, ${accent}42 0%, ${theme.colors.accentSoft} 34%, transparent 64%),
+    linear-gradient(180deg, ${theme.colors.surfaceLift} 0%, ${theme.colors.surface} 100%)
   `;
 }
 
@@ -108,6 +137,29 @@ export default function ProfileView({ profile }: Props) {
     updates,
   } = profile;
   const [activeRoom, setActiveRoom] = useState<ProfileRoom>("overview");
+  const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
+  const theme = getProfileTheme(themeOverride ?? house.themeId);
+
+  useEffect(() => {
+    function syncStoredTheme() {
+      setThemeOverride(validThemeId(window.localStorage.getItem(profileThemeStorageKey(house.handle))));
+    }
+
+    function onThemeChange(event: Event) {
+      const detail = (event as CustomEvent<{ handle?: string; themeId?: ProfileThemeId }>).detail;
+      if (detail?.handle !== house.handle) return;
+      setThemeOverride(detail.themeId);
+    }
+
+    syncStoredTheme();
+    window.addEventListener("storage", syncStoredTheme);
+    window.addEventListener("buildingempires:profile-theme", onThemeChange);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredTheme);
+      window.removeEventListener("buildingempires:profile-theme", onThemeChange);
+    };
+  }, [house.handle]);
 
   const roomModules = useMemo(
     () =>
@@ -179,16 +231,16 @@ export default function ProfileView({ profile }: Props) {
   ];
 
   return (
-    <main className="min-h-full bg-[#050505] text-[#f7f0df]">
+    <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(theme)}>
       <section className="mx-auto max-w-7xl px-5 py-4 sm:px-8 lg:px-10">
-        <article className="overflow-hidden rounded-lg border border-white/10 bg-[#0d0d0d] shadow-[0_22px_90px_rgba(0,0,0,0.28)]">
-          <div className="relative min-h-[230px] border-b border-white/10" style={{ background: coverBackground(house.primaryColor) }}>
-            <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+        <article className="overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] shadow-[0_22px_90px_var(--profile-shadow)]">
+          <div className="relative min-h-[230px] border-b border-[var(--profile-border)]" style={{ background: coverBackground(house.primaryColor, theme) }}>
+            <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
             <div className="absolute left-5 top-5 flex flex-wrap gap-2 sm:left-7">
               <span className={`rounded-full border px-3 py-1 text-[10px] font-normal uppercase tracking-[0.14em] ${statusStyle(house.status)}`}>
                 {statusLabels[house.status]}
               </span>
-              <span className="rounded-full border border-white/18 bg-black/25 px-3 py-1 text-[10px] font-normal uppercase tracking-[0.14em] text-white backdrop-blur">
+              <span className="rounded-full border border-[var(--profile-border-strong)] bg-[var(--profile-surface-soft)] px-3 py-1 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-text)] backdrop-blur">
                 {house.type}
               </span>
             </div>
@@ -198,19 +250,19 @@ export default function ProfileView({ profile }: Props) {
             <div className="-mt-14 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
               <div className="min-w-0">
                 <div
-                  className="mb-5 grid size-24 place-items-center rounded-full border-4 border-[#0d0d0d] text-[48px] font-normal leading-none shadow-[0_20px_55px_rgba(0,0,0,0.28)]"
+                  className="mb-5 grid size-24 place-items-center rounded-full border-4 border-[var(--profile-surface)] text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
                   style={{
                     background: house.primaryColor,
-                    color: house.primaryColor === "#050505" ? "#fff8ed" : "#050505",
+                    color: theme.colors.buttonText,
                   }}
                   aria-hidden="true"
                 >
                   {house.initials}
                 </div>
-                <h1 className="max-w-5xl text-[42px] font-normal uppercase leading-[0.95] tracking-normal text-white sm:text-6xl lg:text-7xl">
+                <h1 className="max-w-5xl text-[42px] font-normal uppercase leading-[0.95] tracking-normal text-[var(--profile-text)] sm:text-6xl lg:text-7xl">
                   {house.name}
                 </h1>
-                <p className="mt-4 max-w-3xl text-base leading-7 text-[#d8cfc0] sm:text-lg">
+                <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--profile-text-soft)] sm:text-lg">
                   {house.shortDescription}
                 </p>
               </div>
@@ -224,8 +276,8 @@ export default function ProfileView({ profile }: Props) {
                     rel="noreferrer"
                     className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-4 text-sm font-normal transition ${
                       index === 0
-                        ? "border-[#ff6a00] bg-[#ff6a00] text-black hover:bg-[#e55f00]"
-                        : "border-white/10 bg-white/[0.035] text-white hover:border-white/25"
+                        ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)] hover:opacity-90"
+                        : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-text)] hover:border-[var(--profile-border-strong)]"
                     }`}
                   >
                     {link.label}
@@ -235,23 +287,23 @@ export default function ProfileView({ profile }: Props) {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 border-t border-white/10 pt-5 sm:grid-cols-4">
+            <div className="mt-6 grid gap-3 border-t border-[var(--profile-border)] pt-5 sm:grid-cols-4">
               {overviewStats.map((stat) => (
-                <div key={stat.label} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
-                  <div className="text-3xl font-normal leading-none text-white">{stat.value}</div>
-                  <div className="mt-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                <div key={stat.label} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4">
+                  <div className="text-3xl font-normal leading-none text-[var(--profile-text)]">{stat.value}</div>
+                  <div className="mt-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
                     {stat.label}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+            <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
               {house.vibes.map((vibe) => (
-                <span key={vibe} className="text-[#ffb16b]">{vibe}</span>
+                <span key={vibe} className="text-[var(--profile-accent-strong)]">{vibe}</span>
               ))}
               {house.tags.map((tag) => (
-                <span key={tag} style={{ color: house.primaryColor === "#050505" ? "#a99f91" : house.primaryColor }}>
+                <span key={tag} className="text-[var(--profile-accent)]">
                   {tag}
                 </span>
               ))}
@@ -259,20 +311,20 @@ export default function ProfileView({ profile }: Props) {
           </div>
         </article>
 
-        <section className="mt-5 rounded-lg border border-white/10 bg-[#0d0d0d] p-5">
+        <section className="mt-5 rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-5">
           <div className="flex items-center gap-2">
-            <span className="text-[#ff6a00]">
+            <span className="text-[var(--profile-accent)]">
               <UserRound size={17} aria-hidden="true" />
             </span>
-            <h2 className="text-xl font-normal text-white">{identityTitle}</h2>
+            <h2 className="text-xl font-normal text-[var(--profile-text)]">{identityTitle}</h2>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {identityCards.map((card) => (
-              <article key={card.label} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
-                <div className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+              <article key={card.label} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4">
+                <div className="text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
                   {card.label}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-[#d8cfc0]">{card.value}</p>
+                <p className="mt-2 text-sm leading-6 text-[var(--profile-text-soft)]">{card.value}</p>
               </article>
             ))}
           </div>
@@ -280,8 +332,8 @@ export default function ProfileView({ profile }: Props) {
 
         <div className="mt-5 grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)_320px]">
           <aside className="grid content-start gap-4">
-            <section className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4 lg:sticky lg:top-[72px]">
-              <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[#8f8577]">
+            <section className="rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-4 lg:sticky lg:top-[72px]">
+              <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[var(--profile-muted)]">
                 <Grid3X3 size={14} aria-hidden="true" />
                 sections
               </div>
@@ -303,19 +355,19 @@ export default function ProfileView({ profile }: Props) {
             <ProfileSection icon={<Sparkles size={17} />} id="overview" title="Overview">
               <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px]">
                 <div>
-                  <p className="text-base leading-7 text-[#d8cfc0]">{house.description}</p>
+                  <p className="text-base leading-7 text-[var(--profile-text-soft)]">{house.description}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {house.tags.map((tag) => (
-                      <span key={tag} className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 text-[10px] font-normal uppercase tracking-[0.12em] text-[#c8bdae]">
+                      <span key={tag} className="rounded-full border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-3 py-1 text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-text-soft)]">
                         {tag}
                       </span>
                     ))}
                   </div>
                 </div>
-                <div className="rounded-md border border-[#ff6a00]/25 bg-[#ff6a00]/10 p-4">
-                  <p className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#ffb16b]">Profile state</p>
-                  <p className="mt-2 text-2xl font-normal leading-tight text-white">{statusLabels[house.status]}</p>
-                  <p className="mt-2 text-sm leading-6 text-[#c8bdae]">
+                <div className="rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent-soft)] p-4">
+                  <p className="text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-accent-strong)]">Profile state</p>
+                  <p className="mt-2 text-2xl font-normal leading-tight text-[var(--profile-text)]">{statusLabels[house.status]}</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--profile-text-soft)]">
                     One identity layer with reusable public sections.
                   </p>
                 </div>
@@ -333,13 +385,13 @@ export default function ProfileView({ profile }: Props) {
                       rel="noreferrer"
                       className={`group flex min-h-[76px] items-center justify-between gap-4 rounded-md border p-4 transition ${
                         index === 0
-                          ? "border-[#ff6a00]/40 bg-[#ff6a00] text-black hover:bg-[#e55f00]"
-                          : "border-white/10 bg-white/[0.035] text-white hover:border-[#ff6a00]/50"
+                          ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)] hover:opacity-90"
+                          : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-text)] hover:border-[var(--profile-accent)]"
                       }`}
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-base font-normal">{link.label}</span>
-                        <span className={`mt-1 block truncate text-sm ${index === 0 ? "text-black/70" : "text-[#8f8577]"}`}>
+                        <span className={`mt-1 block truncate text-sm ${index === 0 ? "opacity-70" : "text-[var(--profile-muted)]"}`}>
                           {displayUrl(link.url)}
                         </span>
                       </span>
@@ -348,8 +400,8 @@ export default function ProfileView({ profile }: Props) {
                   ))}
                 </div>
                 {socialLinks.length > 0 && (
-                  <div className="mt-4 border-t border-white/10 pt-4">
-                    <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                  <div className="mt-4 border-t border-[var(--profile-border)] pt-4">
+                    <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
                       social profiles
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -359,10 +411,10 @@ export default function ProfileView({ profile }: Props) {
                           href={link.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="rounded-md border border-white/10 bg-white/[0.035] p-3 text-sm font-normal text-white transition hover:border-[#ff6a00]/45"
+                          className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3 text-sm font-normal text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]"
                         >
                           <span className="block">{link.label}</span>
-                          <span className="mt-1 block truncate text-xs text-[#8f8577]">{displayUrl(link.url)}</span>
+                          <span className="mt-1 block truncate text-xs text-[var(--profile-muted)]">{displayUrl(link.url)}</span>
                         </a>
                       ))}
                     </div>
@@ -375,19 +427,18 @@ export default function ProfileView({ profile }: Props) {
               <ProfileSection icon={<Grid3X3 size={17} />} id="sections" title="Profile sections">
                 <div className="grid gap-4">
                   {roomModules.map((module) => (
-                    <article key={module.id} className="rounded-md border border-white/10 bg-white/[0.035] p-5">
+                    <article key={module.id} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-5">
                       <div
-                        className="mb-2 text-[10px] font-normal uppercase tracking-[0.16em]"
-                        style={{ color: house.primaryColor === "#050505" ? "#a99f91" : house.primaryColor }}
+                        className="mb-2 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-accent)]"
                       >
                         {profileRoomLabel(module.room, house.type)}
                       </div>
-                      <h2 className="text-[25px] font-normal uppercase leading-tight text-white">{module.title}</h2>
-                      <p className="mt-3 text-sm leading-7 text-[#c8bdae]">{module.body}</p>
+                      <h2 className="text-[25px] font-normal uppercase leading-tight text-[var(--profile-text)]">{module.title}</h2>
+                      <p className="mt-3 text-sm leading-7 text-[var(--profile-text-soft)]">{module.body}</p>
                       {module.bullets && (
                         <div className="mt-4 grid gap-2 md:grid-cols-3">
                           {module.bullets.map((bullet) => (
-                            <div key={bullet} className="rounded-md border border-white/10 bg-black/20 p-3 text-sm leading-5 text-[#d8cfc0]">
+                            <div key={bullet} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-lift)] p-3 text-sm leading-5 text-[var(--profile-text-soft)]">
                               {bullet}
                             </div>
                           ))}
@@ -396,7 +447,7 @@ export default function ProfileView({ profile }: Props) {
                       {module.cta && (
                         <a
                           href={module.cta.href}
-                          className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-[#ff6a00]/35 px-3 text-xs font-normal uppercase tracking-[0.12em] text-[#ffb16b] transition hover:border-[#ff6a00]"
+                          className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-[var(--profile-accent)] px-3 text-xs font-normal uppercase tracking-[0.12em] text-[var(--profile-accent-strong)] transition hover:bg-[var(--profile-accent-soft)]"
                         >
                           {module.cta.label}
                           <ArrowUpRight size={13} aria-hidden="true" />
@@ -430,7 +481,7 @@ export default function ProfileView({ profile }: Props) {
 
             {visibleSchedule.length > 0 && (
               <ProfileSection icon={<CalendarDays size={17} />} id="schedule" title="Schedule">
-                <div className="divide-y divide-white/10 border-t border-white/10">
+                <div className="divide-y divide-[var(--profile-border)] border-t border-[var(--profile-border)]">
                   {visibleSchedule.map((item) => (
                     <ScheduleRow item={item} key={item.id} />
                   ))}
@@ -447,15 +498,15 @@ export default function ProfileView({ profile }: Props) {
                       href={update.url ?? "#"}
                       target={update.url ? "_blank" : undefined}
                       rel={update.url ? "noreferrer" : undefined}
-                      className="rounded-md border border-white/10 bg-white/[0.035] p-4 transition hover:border-[#ff6a00]/45"
+                      className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <h3 className="text-base font-normal text-white">{update.title}</h3>
+                        <h3 className="text-base font-normal text-[var(--profile-text)]">{update.title}</h3>
                         <span className={`shrink-0 border px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] ${statusStyle(update.status)}`}>
                           {statusLabels[update.status]}
                         </span>
                       </div>
-                      <p className="mt-2 text-sm leading-6 text-[#b8ad9f]">{update.detail}</p>
+                      <p className="mt-2 text-sm leading-6 text-[var(--profile-text-soft)]">{update.detail}</p>
                     </a>
                   ))}
                 </div>
@@ -472,10 +523,10 @@ export default function ProfileView({ profile }: Props) {
                     <Link
                       key={`${label}-${relatedHouse.id}`}
                       href={`/${relatedHouse.handle}`}
-                      className="rounded-md border border-white/10 bg-white/[0.035] p-3 transition hover:border-[#ff6a00]/45"
+                      className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]"
                     >
-                      <span className="block truncate text-sm font-normal text-white">{relatedHouse.name}</span>
-                      <span className="mt-1 block text-[10px] font-normal uppercase tracking-[0.12em] text-[#8f8577]">
+                      <span className="block truncate text-sm font-normal text-[var(--profile-text)]">{relatedHouse.name}</span>
+                      <span className="mt-1 block text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
                         {label}
                       </span>
                     </Link>
@@ -505,8 +556,8 @@ function RoomButton({
       onClick={onClick}
       className={`min-h-10 rounded-md px-3 text-left text-[12px] font-normal uppercase tracking-[0.12em] transition ${
         active
-          ? "bg-[#ff6a00] text-black"
-          : "text-[#a99f91] hover:bg-white/[0.04] hover:text-white"
+          ? "bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
+          : "text-[var(--profile-muted)] hover:bg-[var(--profile-surface-soft)] hover:text-[var(--profile-text)]"
       }`}
     >
       {label}
@@ -526,21 +577,21 @@ function ProfileSection({
   title: string;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 rounded-lg border border-white/10 bg-[#0d0d0d] p-5">
+    <section id={id} className="scroll-mt-24 rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-5">
       <div className="flex items-center gap-2">
-        <span className="text-[#ff6a00]">{icon}</span>
-        <h2 className="text-xl font-normal text-white">{title}</h2>
+        <span className="text-[var(--profile-accent)]">{icon}</span>
+        <h2 className="text-xl font-normal text-[var(--profile-text)]">{title}</h2>
       </div>
-      <div className="mt-4 text-base leading-7 text-[#c8bdae]">{children}</div>
+      <div className="mt-4 text-base leading-7 text-[var(--profile-text-soft)]">{children}</div>
     </section>
   );
 }
 
 function Panel({ children, icon, title }: { children: ReactNode; icon: ReactNode; title: string }) {
   return (
-    <section className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
-      <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[#8f8577]">
-        <span className="text-[#ff6a00]">{icon}</span>
+    <section className="rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-4">
+      <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[var(--profile-muted)]">
+        <span className="text-[var(--profile-accent)]">{icon}</span>
         {title}
       </div>
       {children}
@@ -554,25 +605,25 @@ function ItemCard({ item }: { item: HouseItem }) {
       href={item.url ?? "#"}
       target={item.url?.startsWith("http") ? "_blank" : undefined}
       rel={item.url?.startsWith("http") ? "noreferrer" : undefined}
-      className="rounded-md border border-white/10 bg-white/[0.035] p-4 transition hover:border-[#ff6a00]/45"
+      className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+        <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
           {item.kindLabel ?? item.itemType}
         </span>
         <span className={`border px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] ${statusStyle(item.status)}`}>
           {statusLabels[item.status]}
         </span>
       </div>
-      <h3 className="text-lg font-normal text-white">{item.title}</h3>
-      <p className="mt-2 text-sm leading-6 text-[#b8ad9f]">{item.description}</p>
+      <h3 className="text-lg font-normal text-[var(--profile-text)]">{item.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[var(--profile-text-soft)]">{item.description}</p>
       {(item.price || item.ctaLabel) && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-normal uppercase tracking-[0.12em] text-[#d8cfc0]">
-          {item.price && <span className="text-[#ffb16b]">{item.price}</span>}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-text-soft)]">
+          {item.price && <span className="text-[var(--profile-accent-strong)]">{item.price}</span>}
           {item.ctaLabel && <span>{item.ctaLabel}</span>}
         </div>
       )}
-      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-normal uppercase tracking-[0.12em] text-[#8f8577]">
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
         {item.tags.map((tag) => (
           <span key={tag}>{tag}</span>
         ))}
@@ -587,18 +638,18 @@ function ScheduleRow({ item }: { item: ScheduleItem }) {
       href={item.url ?? "#"}
       target={item.url?.startsWith("http") ? "_blank" : undefined}
       rel={item.url?.startsWith("http") ? "noreferrer" : undefined}
-      className="grid gap-3 py-4 transition hover:bg-white/[0.025] sm:grid-cols-[140px_minmax(0,1fr)_auto]"
+      className="grid gap-3 py-4 transition hover:bg-[var(--profile-surface-soft)] sm:grid-cols-[140px_minmax(0,1fr)_auto]"
     >
-      <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+      <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
         {formatScheduleDate(item.startsAt)}
       </span>
       <span className="min-w-0">
-        <span className="mb-2 inline-flex border border-white/10 px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] text-[#ffb16b]">
+        <span className="mb-2 inline-flex border border-[var(--profile-border)] px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] text-[var(--profile-accent-strong)]">
           {scheduleTypeLabel(item.type)}
         </span>
-        <span className="block text-base font-normal text-white">{item.title}</span>
+        <span className="block text-base font-normal text-[var(--profile-text)]">{item.title}</span>
         {item.tags.length > 0 && (
-          <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-normal uppercase tracking-[0.12em] text-[#8f8577]">
+          <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
             {item.tags.map((tag) => (
               <span key={tag}>{tag}</span>
             ))}
@@ -606,7 +657,7 @@ function ScheduleRow({ item }: { item: ScheduleItem }) {
         )}
       </span>
       {item.url && (
-        <span className="inline-flex max-w-[180px] items-center gap-2 truncate text-[10px] font-normal uppercase tracking-[0.12em] text-[#ffb16b] sm:justify-self-end">
+        <span className="inline-flex max-w-[180px] items-center gap-2 truncate text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-accent-strong)] sm:justify-self-end">
           {displayUrl(item.url)}
           <ArrowUpRight size={13} aria-hidden="true" />
         </span>

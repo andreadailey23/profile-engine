@@ -19,6 +19,7 @@ create table entities (
   name text not null,
   tagline text,
   about text,
+  theme_id text,
   status text not null default 'building'
     check (status in ('building','live','selling','testing','paused','planned','archived','coming-soon')),
   visibility text not null default 'public'
