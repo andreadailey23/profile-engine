@@ -1,69 +1,128 @@
-// Entity types and facets mirror sql/schema.sql — keep the check constraints in sync.
-export type EntityType = "person" | "brand" | "product" | "gamer" | "seller";
-export type Facet = "work" | "play" | "life" | "stuff";
+export type HouseType =
+  | "person"
+  | "brand"
+  | "product"
+  | "project"
+  | "book"
+  | "app"
+  | "creator"
+  | "company"
+  | "offer"
+  | "community"
+  | "studio";
 
-export type PatternKind = "dots" | "grid" | "diagonal" | "diamond" | "none";
+export type HouseStatus =
+  | "building"
+  | "live"
+  | "selling"
+  | "testing"
+  | "paused"
+  | "planned";
 
-export type Theme = {
-  accent: string;
-  pattern: PatternKind;
-};
+export type RoomType =
+  | "identity"
+  | "positioning"
+  | "proof"
+  | "work"
+  | "products"
+  | "posts"
+  | "links"
+  | "activity"
+  | "schedule"
+  | "shop"
+  | "support"
+  | "contact"
+  | "offers"
+  | "games"
+  | "streams"
+  | "books"
+  | "channels"
+  | "reports";
 
-export type Entity = {
+export type House = {
   id: string;
   handle: string;
   name: string;
-  type: EntityType;
-  tagline: string;
-  about?: string;
+  type: HouseType;
+  shortDescription: string;
+  description: string;
   initials: string;
-  theme: Theme;
-  // Vibe tags, generalized from Streamo: short expressive taste/personality
-  // chips. In the real schema these become edges to canonical tag entities.
+  primaryColor: string;
+  status: HouseStatus;
+  owner: string;
   tags: string[];
-  // Current consecutive-day activity streak; derived from the ledger once live.
-  streak?: number;
+  vibes: string[];
+  rooms: RoomType[];
+  visibility: "public" | "private";
 };
 
-export type Relationship = {
+export type HouseRelationship = {
   from: string;
   to: string;
-  kind: "parent" | "owner";
+  kind: "owner" | "parent" | "related";
 };
 
-export type Block = {
+export type HouseModule = {
   id: string;
-  entityId: string;
-  facet: Facet;
+  houseId: string;
+  room: RoomType;
   title: string;
   body: string;
-  cta?: string;
+  bullets?: string[];
+  cta?: {
+    label: string;
+    href: string;
+  };
 };
 
-export type LinkItem = {
-  entityId: string;
+export type HouseLink = {
+  houseId: string;
   label: string;
   url: string;
+  type: "website" | "shop" | "newsletter" | "social" | "contact" | "product";
 };
 
-export type EngineEvent = {
+export type HouseItem = {
   id: string;
-  entityId: string;
-  facet: Facet;
-  kind: string;
-  label: string;
-  xp: number;
-  at: string;
+  houseId: string;
+  itemType:
+    | "app"
+    | "book"
+    | "store"
+    | "tool"
+    | "media"
+    | "project"
+    | "pick"
+    | "service"
+    | "course"
+    | "offer"
+    | "collection"
+    | "community";
+  title: string;
+  description: string;
+  url?: string;
+  price?: string;
+  ctaLabel?: string;
+  status: HouseStatus;
+  tags: string[];
 };
 
-export type Badge = {
+export type ScheduleItem = {
   id: string;
-  name: string;
-  desc: string;
-  icon: string;
+  houseId: string;
+  title: string;
+  detail: string;
+  startsAt: string;
+  type: "live" | "podcast" | "event" | "drop" | "office-hours" | "launch" | "booking";
+  url?: string;
+  visible: boolean;
 };
 
-export type EarnedBadge = {
-  entityId: string;
-  badgeId: string;
+export type ActivityUpdate = {
+  id: string;
+  houseId: string;
+  title: string;
+  detail: string;
+  status: HouseStatus;
+  url?: string;
 };

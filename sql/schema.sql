@@ -8,16 +8,21 @@ create table workspaces (
   created_at timestamptz not null default now()
 );
 
--- One row per person, brand, product, gamer persona, or shop.
+-- One row per person, brand, product, project, app, book, offer, community,
+-- studio, or shop.
 -- Flexible fields go in data (jsonb), same pattern as Atla's nodes table.
 create table entities (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id),
   handle text not null unique,
-  type text not null check (type in ('person','brand','product','gamer','seller')),
+  type text not null check (type in ('person','brand','product','project','book','app','creator','company','offer','community','studio')),
   name text not null,
   tagline text,
   about text,
+  status text not null default 'building'
+    check (status in ('building','live','selling','testing','paused','planned')),
+  visibility text not null default 'public'
+    check (visibility in ('public','private')),
   data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
@@ -31,13 +36,32 @@ create table relationships (
   unique (from_entity, to_entity, kind)
 );
 
--- Blocks are the per-product content modules rendered in the profile shell.
--- facet powers the work/play/life/stuff tabs and filtering.
+-- Blocks are the public modules rendered in the profile shell.
+-- room powers show/hide modules and site-specific views.
 create table blocks (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id),
   entity_id uuid not null references entities(id),
-  facet text not null check (facet in ('work','play','life','stuff')),
+  room text not null check (room in (
+    'identity',
+    'positioning',
+    'proof',
+    'work',
+    'products',
+    'posts',
+    'links',
+    'activity',
+    'schedule',
+    'shop',
+    'support',
+    'contact',
+    'offers',
+    'games',
+    'streams',
+    'books',
+    'channels',
+    'reports'
+  )),
   kind text not null default 'text',
   title text not null,
   body text,
@@ -55,13 +79,44 @@ create table links (
   position int not null default 0
 );
 
+-- External offer/product cards first. Native checkout waits until later.
+create table items (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id),
+  entity_id uuid not null references entities(id),
+  item_type text not null check (item_type in ('app','book','store','tool','media','course','offer','collection','community')),
+  title text not null,
+  description text,
+  url text,
+  price text,
+  cta_label text,
+  status text not null default 'building'
+    check (status in ('building','live','selling','testing','paused','planned')),
+  data jsonb not null default '{}'::jsonb,
+  position int not null default 0
+);
+
+-- Simple schedule module. No full calendar app in V1.
+create table schedule_items (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id),
+  entity_id uuid not null references entities(id),
+  title text not null,
+  detail text,
+  starts_at timestamptz not null,
+  type text not null check (type in ('live','podcast','event','drop','office-hours','launch','booking')),
+  url text,
+  visible boolean not null default true,
+  data jsonb not null default '{}'::jsonb
+);
+
 -- Append-only ledger. Single source of truth for XP, streaks, badges,
 -- activity feeds, and proof-of-work blocks. Never update or delete rows.
 create table events (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id),
   entity_id uuid not null references entities(id),
-  facet text not null check (facet in ('work','play','life','stuff')),
+  room text not null check (room in ('identity','positioning','proof','work','products','posts','links','activity','schedule','shop','support','contact','offers','games','streams','books','channels','reports')),
   kind text not null,
   label text not null,
   xp int not null default 0,

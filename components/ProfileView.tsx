@@ -1,539 +1,813 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
+import {
+  Activity,
+  ArrowUpRight,
+  CalendarDays,
+  Camera,
+  CheckCircle2,
+  Gamepad2,
+  Grid3X3,
+  Link2,
+  Package,
+  Palette,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  UserRound,
+} from "lucide-react";
 import type {
-  Badge,
-  Block,
-  EngineEvent,
-  Entity,
-  Facet,
-  LinkItem,
-  PatternKind,
-  Theme,
+  HouseItem,
+  HouseStatus,
+  RoomType,
+  ScheduleItem,
 } from "@/lib/engine/types";
-import { nextLevelAt, totalXp, xpToLevel } from "@/lib/engine/logic";
+import type { ProfileRecord } from "@/lib/engine/selectors";
 
-const FACETS: Facet[] = ["work", "play", "life", "stuff"];
-
-const FACET_PILL: Record<Facet, string> = {
-  work: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  play: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  life: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  stuff: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30",
+const statusLabels: Record<HouseStatus, string> = {
+  building: "building",
+  live: "live",
+  selling: "selling",
+  testing: "testing",
+  paused: "paused",
+  planned: "planned",
 };
 
-const TYPE_PILL: Record<string, string> = {
-  person: "bg-violet-500/15 text-violet-300 border-violet-500/30",
-  brand: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-  product: "bg-teal-500/15 text-teal-300 border-teal-500/30",
-  gamer: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30",
-  seller: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-};
+function statusStyle(status: HouseStatus) {
+  if (status === "live") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
+  if (status === "selling") return "border-amber-300/30 bg-amber-300/10 text-amber-200";
+  if (status === "testing") return "border-sky-300/30 bg-sky-300/10 text-sky-200";
+  if (status === "paused") return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
+  return "border-orange-400/30 bg-orange-400/10 text-orange-200";
+}
 
-const SIMS: { kind: string; label: string; feed: string; facet: Facet; xp: number }[] = [
-  { kind: "shipped", label: "+ Ship something", feed: "Shipped something new", facet: "work", xp: 50 },
-  { kind: "streamed", label: "+ Stream a session", feed: "Streamed a session", facet: "play", xp: 15 },
-  { kind: "wrote", label: "+ Write a page", feed: "Wrote a page", facet: "life", xp: 10 },
-  { kind: "sold", label: "+ Sell something", feed: "Sold something, direct", facet: "stuff", xp: 25 },
-];
+function displayUrl(url: string) {
+  return url.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
+}
 
-const SWATCHES = ["#8b5cf6", "#ef4444", "#0ea5e9", "#10b981", "#f59e0b", "#ec4899", "#14b8a6"];
-const PATTERNS: PatternKind[] = ["dots", "grid", "diagonal", "diamond", "none"];
+function roomLabel(room: RoomType) {
+  return room.replace(/-/g, " ");
+}
 
-function patternStyle(theme: Theme): React.CSSProperties {
-  const a = theme.accent;
-  const base: React.CSSProperties = { backgroundColor: a + "14" };
-  switch (theme.pattern) {
-    case "dots":
-      return {
-        ...base,
-        backgroundImage: `radial-gradient(${a}55 1.2px, transparent 1.2px)`,
-        backgroundSize: "12px 12px",
-      };
-    case "grid":
-      return {
-        ...base,
-        backgroundImage: `linear-gradient(${a}33 1px, transparent 1px), linear-gradient(90deg, ${a}33 1px, transparent 1px)`,
-        backgroundSize: "16px 16px",
-      };
-    case "diagonal":
-      return {
-        ...base,
-        backgroundImage: `repeating-linear-gradient(45deg, ${a}40 0 2px, transparent 2px 10px)`,
-      };
-    case "diamond":
-      return {
-        ...base,
-        backgroundImage: `repeating-linear-gradient(45deg, ${a}33 0 1.5px, transparent 1.5px 12px), repeating-linear-gradient(-45deg, ${a}33 0 1.5px, transparent 1.5px 12px)`,
-      };
-    default:
-      return base;
+function coverBackground(color: string) {
+  const accent = color === "#050505" ? "#ff6a00" : color;
+
+  return `
+    radial-gradient(circle at 16% 18%, ${accent}66, transparent 28%),
+    radial-gradient(circle at 86% 16%, rgba(255, 255, 255, 0.16), transparent 24%),
+    linear-gradient(135deg, ${accent}33 0%, rgba(255,255,255,0.06) 42%, rgba(5,5,5,0.92) 100%)
+  `;
+}
+
+const themeOptions = [
+  { id: "clean", label: "Clean", detail: "Simple, readable, profile-first." },
+  { id: "creator", label: "Creator", detail: "More visual energy for media and projects." },
+  { id: "gaming", label: "Gaming", detail: "Vibe-forward for streams, games, and community." },
+  { id: "local", label: "Local", detail: "Good for makers, vendors, services, and favorites." },
+] as const;
+
+const accentOptions = ["#ff6a00", "#d22f2f", "#EC4899", "#8B5CF6", "#148f4b", "#38BDF8", "#8faa88"];
+
+const baseProfileSections = [
+  {
+    title: "Identity",
+    detail: "Name, bio, profile photo, color, handle, and the first thing people should understand.",
+  },
+  {
+    title: "Vibe",
+    detail: "A simple status/mood layer, especially useful for gaming, creators, and personal profiles.",
+  },
+  {
+    title: "Links",
+    detail: "Website, socials, newsletter, channels, stores, and everywhere else people can find you.",
+  },
+  {
+    title: "Projects",
+    detail: "Brands, books, apps, work, communities, local products, or anything you are connected to.",
+  },
+  {
+    title: "Picks",
+    detail: "Shows, vendors, tools, books, places, products, and recommendations from your world.",
+  },
+  {
+    title: "Offers",
+    detail: "Buy, book, hire, support, subscribe, download, join, or request.",
+  },
+  {
+    title: "Updates",
+    detail: "Recent activity, launches, milestones, proof, or what you want people to notice now.",
+  },
+] as const;
+
+function vibeChoicesFor(tags: string[], fallback: string[]) {
+  const hasGaming = tags.some((tag) => ["gaming", "games", "streamer", "community"].includes(tag));
+
+  if (hasGaming) {
+    return ["new game vibes", "ranked grind", "cozy stream", "community night", "creator mode"];
   }
+
+  return Array.from(new Set([...fallback, "open", "learning", "making", "recommending", "available"])).slice(0, 6);
 }
 
 type Props = {
-  entity: Entity;
-  blocks: Block[];
-  links: LinkItem[];
-  parents: Entity[];
-  childEntities: Entity[];
-  owners: Entity[];
-  owns: Entity[];
-  initialEvents: EngineEvent[];
-  badges: Badge[];
-  lockedBadges: Badge[];
+  profile: NonNullable<ProfileRecord>;
 };
 
-function Module({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3 mb-3">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 mb-2">
-        {title}
-      </div>
-      {children}
-    </div>
+type ProfileRoom = RoomType | "overview" | "best-of";
+
+export default function ProfileView({ profile }: Props) {
+  const {
+    house,
+    visibleRooms,
+    modules,
+    links,
+    parentHouses,
+    childHouses,
+    ownerHouses,
+    ownsHouses,
+    relatedHouses,
+    items,
+    schedule,
+    updates,
+  } = profile;
+  const [activeRoom, setActiveRoom] = useState<ProfileRoom>("overview");
+  const [selectedTheme, setSelectedTheme] = useState<(typeof themeOptions)[number]["id"]>("clean");
+  const [selectedVibe, setSelectedVibe] = useState(house.vibes[0] ?? "open");
+  const [selectedAccent, setSelectedAccent] = useState(house.primaryColor);
+
+  const roomModules = useMemo(
+    () =>
+      activeRoom === "overview"
+        ? modules
+        : modules.filter((module) => module.room === activeRoom),
+    [activeRoom, modules],
   );
-}
 
-function Stat({ v, l, accent }: { v: string | number; l: string; accent: string }) {
-  return (
-    <div className="rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2 text-center">
-      <div className="text-base font-semibold" style={{ color: accent }}>
-        {v}
-      </div>
-      <div className="text-[10px] uppercase tracking-wider text-zinc-500 mt-0.5">{l}</div>
-    </div>
+  const visibleItems = useMemo(
+    () =>
+      activeRoom === "overview" ||
+      ["products", "shop", "books", "channels", "games", "work", "offers", "support"].includes(activeRoom)
+        ? items.filter((item) => item.itemType !== "pick")
+        : [],
+    [activeRoom, items],
   );
-}
 
-function EntityLink({ e }: { e: Entity }) {
-  return (
-    <Link
-      href={`/${e.handle}`}
-      className="flex items-center gap-2 py-1 text-sm text-zinc-300 hover:text-white"
-    >
-      <span
-        className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-medium"
-        style={{ backgroundColor: e.theme.accent + "33", color: "#fff" }}
-      >
-        {e.initials}
-      </span>
-      {e.name}
-      <span className="text-[10px] text-zinc-600">{e.type}</span>
-    </Link>
-  );
-}
+  const bestOfItems = useMemo(() => {
+    const picks = items.filter(
+      (item) =>
+        item.itemType === "pick" ||
+        item.tags.includes("picks") ||
+        item.tags.includes("recommendations"),
+    );
 
-export default function ProfileView({
-  entity,
-  blocks,
-  links,
-  parents,
-  childEntities,
-  owners,
-  owns,
-  initialEvents,
-  badges,
-  lockedBadges,
-}: Props) {
-  const [events, setEvents] = useState(initialEvents);
-  const [facet, setFacet] = useState<"all" | Facet>("all");
-  const [theme, setTheme] = useState<Theme>(entity.theme);
-  const [tagline, setTagline] = useState(entity.tagline);
-  const [tags, setTags] = useState(entity.tags);
-  const [editingTagline, setEditingTagline] = useState(false);
-  const [newTag, setNewTag] = useState("");
-
-  const xp = totalXp(events);
-  const level = xpToLevel(xp);
-  const next = nextLevelAt(level);
-  const prev = (level - 1) * (level - 1) * 100;
-  const progress = Math.min(100, Math.round(((xp - prev) / (next - prev)) * 100));
-  const visibleBlocks = blocks.filter((b) => facet === "all" || b.facet === facet);
-  const feed = events.filter((e) => facet === "all" || e.facet === facet);
-  const railGroups = FACETS.map((f) => ({
-    facet: f,
-    items: blocks.filter((b) => b.facet === f),
-  })).filter((g) => g.items.length > 0);
-
-  function simulate(sim: (typeof SIMS)[number]) {
-    setEvents((p) => [
-      {
-        id: crypto.randomUUID(),
-        entityId: entity.id,
-        facet: sim.facet,
-        kind: sim.kind,
-        label: sim.feed,
-        xp: sim.xp,
-        at: "Just now",
-      },
-      ...p,
-    ]);
-  }
-
-  function addTag() {
-    const t = newTag.trim().toLowerCase().replace(/\s+/g, "-");
-    if (t && !tags.includes(t)) setTags([...tags, t]);
-    setNewTag("");
-  }
+    return picks.length > 0 ? picks : items.slice(0, 3);
+  }, [items]);
+  const visibleBestOf = activeRoom === "overview" || activeRoom === "best-of" ? bestOfItems : [];
+  const visibleSchedule = activeRoom === "overview" || activeRoom === "schedule" ? schedule : [];
+  const visibleUpdates = activeRoom === "overview" || activeRoom === "activity" ? updates : [];
+  const relationships = [
+    ...parentHouses.map((item) => ({ label: "part of", house: item })),
+    ...ownerHouses.map((item) => ({ label: "owned by", house: item })),
+    ...ownsHouses.map((item) => ({ label: "runs", house: item })),
+    ...childHouses.map((item) => ({ label: "contains", house: item })),
+    ...relatedHouses.map((item) => ({ label: "related", house: item })),
+  ];
+  const overviewStats = [
+    { label: "sections", value: visibleRooms.length },
+    { label: "links", value: links.length },
+    { label: "items", value: items.length },
+    { label: "updates", value: updates.length + schedule.length },
+  ];
+  const setupChecks = [
+    { label: "identity", done: true },
+    { label: "vibe", done: house.vibes.length > 0 },
+    { label: "sections", done: modules.length > 0 },
+    { label: "links", done: links.length > 0 },
+    { label: "items", done: items.length > 0 },
+    { label: "schedule", done: schedule.length > 0 },
+  ];
+  const vibeChoices = vibeChoicesFor(house.tags, house.vibes);
+  const socialLinks = links.filter((link) => link.type === "social");
+  const coreLinks = links.filter((link) => link.type !== "social");
+  const profileSharePath = `/${house.handle}`;
+  const identityTitle = house.type === "person" || house.type === "creator" ? "Who I am" : "What this is";
+  const identityCards = [
+    {
+      label: "in a sentence",
+      value: house.description,
+    },
+    {
+      label: "what I make",
+      value:
+        items.length > 0
+          ? items
+              .filter((item) => item.itemType !== "pick")
+              .slice(0, 4)
+              .map((item) => item.title)
+              .join(" / ")
+          : visibleRooms.slice(0, 4).map(roomLabel).join(" / "),
+    },
+    {
+      label: "what I care about",
+      value: Array.from(new Set([...house.vibes, ...house.tags])).slice(0, 7).join(" / "),
+    },
+    {
+      label: "start here",
+      value: links[0] ? `${links[0].label} / ${displayUrl(links[0].url)}` : profileSharePath,
+    },
+  ];
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-6">
-      <Link href="/" className="text-xs text-zinc-500 hover:text-zinc-300">
-        ← All profiles
-      </Link>
-
-      <header className="mt-3 rounded-2xl bg-[#11141d] border border-white/[0.07] overflow-hidden">
-        <div className="h-24" style={patternStyle(theme)} />
-        <div className="px-5 pb-0">
-          <div className="flex items-end gap-4 flex-wrap -mt-7">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-semibold text-white border-2"
-              style={{
-                backgroundColor: theme.accent + "40",
-                borderColor: theme.accent,
-                backdropFilter: "blur(4px)",
-              }}
-            >
-              {entity.initials}
-            </div>
-            <div className="flex-1 min-w-[200px] pt-8">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-semibold">{entity.name}</h1>
-                <span
-                  className={`text-[11px] px-2 py-0.5 rounded-full border ${TYPE_PILL[entity.type]}`}
-                >
-                  {entity.type}
-                </span>
-              </div>
-              {editingTagline ? (
-                <input
-                  autoFocus
-                  defaultValue={tagline}
-                  onBlur={(e) => {
-                    if (e.target.value.trim()) setTagline(e.target.value.trim());
-                    setEditingTagline(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                  }}
-                  className="mt-0.5 w-full max-w-md bg-white/5 border border-white/20 rounded px-2 py-0.5 text-sm text-zinc-200 outline-none"
-                />
-              ) : (
-                <p
-                  className="text-sm text-zinc-400 mt-0.5 cursor-text hover:text-zinc-200"
-                  title="Click to edit — the profile is the editor"
-                  onClick={() => setEditingTagline(true)}
-                >
-                  {tagline} <span className="text-zinc-600 text-xs">✎</span>
-                </p>
-              )}
-              {badges.length > 0 && (
-                <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                  {badges.slice(0, 3).map((b) => (
-                    <span
-                      key={b.id}
-                      className="text-[11px] px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-zinc-300"
-                      title={b.desc}
-                    >
-                      {b.icon} {b.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-1.5 mt-1.5 flex-wrap items-center">
-                {tags.map((t) => (
-                  <span
-                    key={t}
-                    className="text-[11px] px-2 py-0.5 rounded-full border font-medium inline-flex items-center gap-1"
-                    style={{
-                      backgroundColor: theme.accent + "1f",
-                      borderColor: theme.accent + "55",
-                      color: "#fff",
-                    }}
-                  >
-                    {t}
-                    <button
-                      onClick={() => setTags(tags.filter((x) => x !== t))}
-                      className="text-white/40 hover:text-white"
-                      aria-label={`Remove ${t}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                <input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addTag();
-                  }}
-                  placeholder="+ vibe"
-                  className="w-20 bg-transparent border border-dashed border-white/15 rounded-full px-2 py-0.5 text-[11px] text-zinc-300 outline-none placeholder:text-zinc-600"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-8 pb-1">
-              <button className="text-xs px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10">
-                Follow
-              </button>
-              <button className="text-xs px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10">
-                Say hi
-              </button>
-              {entity.type === "person" && (
-                <button
-                  className="text-xs px-3 py-1.5 rounded-lg font-medium text-white"
-                  style={{ backgroundColor: theme.accent }}
-                >
-                  Hire direct
-                </button>
-              )}
+    <main className="min-h-full bg-[#050505] text-[#f7f0df]">
+      <section className="mx-auto max-w-7xl px-5 py-4 sm:px-8 lg:px-10">
+        <article className="overflow-hidden rounded-lg border border-white/10 bg-[#0d0d0d] shadow-[0_22px_90px_rgba(0,0,0,0.28)]">
+          <div className="relative min-h-[230px] border-b border-white/10" style={{ background: coverBackground(selectedAccent) }}>
+            <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+            <div className="absolute left-5 top-5 flex flex-wrap gap-2 sm:left-7">
+              <span className={`rounded-full border px-3 py-1 text-[10px] font-normal uppercase tracking-[0.14em] ${statusStyle(house.status)}`}>
+                {statusLabels[house.status]}
+              </span>
+              <span className="rounded-full border border-white/18 bg-black/25 px-3 py-1 text-[10px] font-normal uppercase tracking-[0.14em] text-white backdrop-blur">
+                {house.type}
+              </span>
             </div>
           </div>
 
-          {events.length > 0 && (
-            <div className="mt-4">
-              <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
-                <span>
-                  Lv {level} → Lv {level + 1}
-                </span>
-                <span>
-                  {xp.toLocaleString()} / {next.toLocaleString()} XP
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+          <div className="px-5 pb-6 sm:px-7">
+            <div className="-mt-14 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <div className="min-w-0">
                 <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${progress}%`, backgroundColor: theme.accent }}
-                />
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
-                <Stat v={level} l="Level" accent={theme.accent} />
-                <Stat v={xp.toLocaleString()} l="Total XP" accent={theme.accent} />
-                <Stat v={events.length} l="Receipts" accent={theme.accent} />
-                {entity.streak ? (
-                  <Stat v={`${entity.streak} 🔥`} l="Day streak" accent={theme.accent} />
-                ) : (
-                  <Stat v={badges.length} l="Badges" accent={theme.accent} />
-                )}
-              </div>
-            </div>
-          )}
-
-          {links.length > 0 && (
-            <div className="flex gap-2 mt-3 flex-wrap items-center">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500">
-                Find me
-              </span>
-              {links.map((l) => (
-                <a
-                  key={l.url + l.label}
-                  href={l.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white hover:border-white/25"
+                  className="mb-5 grid size-24 place-items-center rounded-full border-4 border-[#0d0d0d] text-[48px] font-normal leading-none shadow-[0_20px_55px_rgba(0,0,0,0.28)]"
+                  style={{
+                    background: selectedAccent,
+                    color: selectedAccent === "#050505" ? "#fff8ed" : "#050505",
+                  }}
+                  aria-hidden="true"
                 >
-                  {l.label} ↗
-                </a>
-              ))}
+                  {house.initials}
+                </div>
+                <h1 className="max-w-5xl text-[42px] font-normal uppercase leading-[0.95] tracking-normal text-white sm:text-6xl lg:text-7xl">
+                  {house.name}
+                </h1>
+                <p className="mt-4 max-w-3xl text-base leading-7 text-[#d8cfc0] sm:text-lg">
+                  {house.shortDescription}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                {links.slice(0, 3).map((link, index) => (
+                  <a
+                    key={`${link.label}-${link.url}`}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-4 text-sm font-normal transition ${
+                      index === 0
+                        ? "border-[#ff6a00] bg-[#ff6a00] text-black hover:bg-[#e55f00]"
+                        : "border-white/10 bg-white/[0.035] text-white hover:border-white/25"
+                    }`}
+                  >
+                    {link.label}
+                    <ArrowUpRight size={15} aria-hidden="true" />
+                  </a>
+                ))}
+              </div>
             </div>
-          )}
 
-          <nav className="flex gap-5 mt-4">
-            {(["all", ...FACETS] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFacet(f)}
-                className={`text-sm pb-2.5 border-b-2 capitalize ${
-                  facet === f
-                    ? "text-white"
-                    : "border-transparent text-zinc-500 hover:text-zinc-300"
-                }`}
-                style={facet === f ? { borderColor: theme.accent } : undefined}
-              >
-                {f}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </header>
-
-      <div className="grid lg:grid-cols-[180px_1fr_240px] gap-5 mt-5">
-        <aside>
-          {railGroups.map((g) => (
-            <div key={g.facet} className="mb-4">
-              <button
-                onClick={() => setFacet(g.facet)}
-                className="w-full flex items-center justify-between text-xs font-medium capitalize text-zinc-300 hover:text-white"
-              >
-                {g.facet}
-                <span className={`w-2 h-2 rounded-full border ${FACET_PILL[g.facet]}`} />
-              </button>
-              {g.items.map((b) => (
-                <div key={b.id} className="text-xs text-zinc-500 pl-2 pt-1.5">
-                  {b.title}
+            <div className="mt-6 grid gap-3 border-t border-white/10 pt-5 sm:grid-cols-4">
+              {overviewStats.map((stat) => (
+                <div key={stat.label} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
+                  <div className="text-3xl font-normal leading-none text-white">{stat.value}</div>
+                  <div className="mt-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                    {stat.label}
+                  </div>
                 </div>
               ))}
             </div>
-          ))}
-        </aside>
 
-        <section>
-          {visibleBlocks.map((b) => (
-            <div
-              key={b.id}
-              className="rounded-xl bg-[#11141d] border border-white/[0.07] p-4 mb-3"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-sm font-semibold">{b.title}</h2>
-                <span
-                  className={`text-[10px] px-1.5 py-px rounded-full border ${FACET_PILL[b.facet]}`}
-                >
-                  {b.facet}
+            <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+              <span className="text-[#ffb16b]">{selectedVibe}</span>
+              <span>{selectedTheme} theme</span>
+              {house.tags.map((tag) => (
+                <span key={tag} style={{ color: selectedAccent === "#050505" ? "#a99f91" : selectedAccent }}>
+                  {tag}
                 </span>
-              </div>
-              <p className="text-sm text-zinc-400 leading-relaxed">{b.body}</p>
-              {b.cta && (
-                <button
-                  className="mt-2 text-xs px-3 py-1.5 rounded-lg font-medium text-white"
-                  style={{ backgroundColor: theme.accent }}
-                >
-                  {b.cta}
-                </button>
-              )}
+              ))}
             </div>
-          ))}
+          </div>
+        </article>
 
-          {events.length > 0 && (
-            <div className="rounded-xl bg-[#11141d] border border-white/[0.07] p-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h2 className="text-sm font-semibold">Proof of work</h2>
-                <span className="text-[11px] text-zinc-500">
-                  {events.length} receipts · pulled from the ledger, not claimed
-                </span>
-              </div>
-              <div className="flex gap-2 mt-3 flex-wrap">
-                {SIMS.map((s) => (
-                  <button
-                    key={s.kind}
-                    onClick={() => simulate(s)}
-                    className="text-[11px] px-2.5 py-1 rounded-lg border border-dashed border-white/15 text-zinc-400 hover:text-white hover:border-white/30"
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-              <ul className="mt-3 divide-y divide-white/[0.05]">
-                {feed.map((e) => (
-                  <li key={e.id} className="flex items-center gap-3 py-2.5">
-                    <span className={`w-2 h-2 rounded-full border shrink-0 ${FACET_PILL[e.facet]}`} />
-                    <span className="text-sm text-zinc-300 flex-1">{e.label}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-px rounded-full border ${FACET_PILL[e.facet]}`}
-                    >
-                      {e.facet}
-                    </span>
-                    <span className="text-[11px] text-emerald-400 w-10 text-right">
-                      +{e.xp}
-                    </span>
-                    <span className="text-[11px] text-zinc-600 w-14 text-right">{e.at}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        <section className="mt-5 rounded-lg border border-white/10 bg-[#0d0d0d] p-5">
+          <div className="flex items-center gap-2">
+            <span className="text-[#ff6a00]">
+              <UserRound size={17} aria-hidden="true" />
+            </span>
+            <h2 className="text-xl font-normal text-white">{identityTitle}</h2>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {identityCards.map((card) => (
+              <article key={card.label} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
+                <div className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                  {card.label}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#d8cfc0]">{card.value}</p>
+              </article>
+            ))}
+          </div>
         </section>
 
-        <aside>
-          <Module title="Appearance">
-            <div className="flex gap-1.5 flex-wrap">
-              {SWATCHES.map((c) => (
-                <button
-                  key={c}
-                  aria-label={`Accent ${c}`}
-                  onClick={() => setTheme((t) => ({ ...t, accent: c }))}
-                  className="w-6 h-6 rounded-full border-2"
-                  style={{
-                    backgroundColor: c,
-                    borderColor: theme.accent === c ? "#fff" : "transparent",
-                  }}
-                />
-              ))}
-            </div>
-            <div className="flex gap-1.5 flex-wrap mt-2">
-              {PATTERNS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setTheme((t) => ({ ...t, pattern: p }))}
-                  className={`text-[11px] px-2 py-0.5 rounded-full border ${
-                    theme.pattern === p
-                      ? "border-white/60 text-white"
-                      : "border-white/10 text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] text-zinc-600 mt-2">
-              Photo + banner uploads come with Supabase. Colors and patterns save
-              per profile.
-            </p>
-          </Module>
+        <div className="mt-5 grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)_320px]">
+          <aside className="grid content-start gap-4">
+            <section className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4 lg:sticky lg:top-[72px]">
+              <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[#8f8577]">
+                <Grid3X3 size={14} aria-hidden="true" />
+                sections
+              </div>
+              <div className="grid gap-1">
+                <RoomButton active={activeRoom === "overview"} label="overview" onClick={() => setActiveRoom("overview")} />
+                {visibleRooms.map((room) => (
+                  <RoomButton
+                    key={room}
+                    active={activeRoom === room}
+                    label={roomLabel(room)}
+                    onClick={() => setActiveRoom(room)}
+                  />
+                ))}
+                {bestOfItems.length > 0 && (
+                  <RoomButton
+                    active={activeRoom === "best-of"}
+                    label="best of"
+                    onClick={() => setActiveRoom("best-of")}
+                  />
+                )}
+              </div>
+            </section>
+          </aside>
 
-          {owns.length > 0 && (
-            <Module title="Runs">
-              {owns.map((e) => (
-                <EntityLink key={e.id} e={e} />
-              ))}
-            </Module>
-          )}
-          {parents.length > 0 && (
-            <Module title="Part of">
-              {parents.map((e) => (
-                <EntityLink key={e.id} e={e} />
-              ))}
-            </Module>
-          )}
-          {childEntities.length > 0 && (
-            <Module title="Inside">
-              {childEntities.map((e) => (
-                <EntityLink key={e.id} e={e} />
-              ))}
-            </Module>
-          )}
-          {owners.length > 0 && (
-            <Module title="By">
-              {owners.map((e) => (
-                <EntityLink key={e.id} e={e} />
-              ))}
-            </Module>
-          )}
-
-          {(badges.length > 0 || lockedBadges.length > 0) && (
-            <Module title="Badges">
-              {badges.map((b) => (
-                <div key={b.id} className="flex items-center gap-2 py-1" title={b.desc}>
-                  <span className="text-base">{b.icon}</span>
-                  <span className="text-sm text-zinc-300">{b.name}</span>
+          <section className="grid min-w-0 content-start gap-5">
+            <ProfileSection icon={<Sparkles size={17} />} id="overview" title="Overview">
+              <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px]">
+                <div>
+                  <p className="text-base leading-7 text-[#d8cfc0]">{house.description}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {house.tags.map((tag) => (
+                      <span key={tag} className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 text-[10px] font-normal uppercase tracking-[0.12em] text-[#c8bdae]">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              ))}
-              {lockedBadges.map((b) => (
-                <div
-                  key={b.id}
-                  className="flex items-center gap-2 py-1 opacity-40"
-                  title={`Locked — ${b.desc}`}
-                >
-                  <span className="text-base">🔒</span>
-                  <span className="text-sm text-zinc-400">{b.name}</span>
+                <div className="rounded-md border border-[#ff6a00]/25 bg-[#ff6a00]/10 p-4">
+                  <p className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#ffb16b]">Profile state</p>
+                  <p className="mt-2 text-2xl font-normal leading-tight text-white">{statusLabels[house.status]}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#c8bdae]">
+                    A public profile with sections, links, products, activity, and context.
+                  </p>
                 </div>
-              ))}
-            </Module>
-          )}
+              </div>
+            </ProfileSection>
 
-        </aside>
-      </div>
+            <ProfileSection icon={<Grid3X3 size={17} />} id="basics" title="Free profile structure">
+              <div className="grid gap-3 md:grid-cols-2">
+                {baseProfileSections.map((section) => (
+                  <article key={section.title} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
+                    <h2 className="text-base font-normal text-white">{section.title}</h2>
+                    <p className="mt-2 text-sm leading-6 text-[#b8ad9f]">{section.detail}</p>
+                  </article>
+                ))}
+              </div>
+            </ProfileSection>
+
+            <ProfileSection icon={<Palette size={17} />} id="vibe" title="Vibe and style">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+                <div className="grid gap-4">
+                  <div>
+                    <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                      pick your vibe
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {vibeChoices.map((vibe) => (
+                        <button
+                          key={vibe}
+                          type="button"
+                          onClick={() => setSelectedVibe(vibe)}
+                          className={`min-h-9 rounded-full border px-3 text-xs font-normal uppercase tracking-[0.12em] transition ${
+                            selectedVibe === vibe
+                              ? "border-[#ff6a00] bg-[#ff6a00] text-black"
+                              : "border-white/10 bg-white/[0.035] text-[#c8bdae] hover:border-white/25"
+                          }`}
+                        >
+                          {vibe}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                      choose a theme
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {themeOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setSelectedTheme(option.id)}
+                          className={`rounded-md border p-3 text-left transition ${
+                            selectedTheme === option.id
+                              ? "border-[#ff6a00] bg-[#ff6a00]/10"
+                              : "border-white/10 bg-white/[0.035] hover:border-white/25"
+                          }`}
+                        >
+                          <span className="block text-sm font-normal text-white">{option.label}</span>
+                          <span className="mt-1 block text-xs leading-5 text-[#8f8577]">{option.detail}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-white/10 bg-black/20 p-4">
+                  <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                    basic customization
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="grid size-16 place-items-center rounded-full border-2 border-white/10 text-2xl font-normal"
+                      style={{ background: selectedAccent, color: selectedAccent === "#050505" ? "#fff8ed" : "#050505" }}
+                    >
+                      {house.initials}
+                    </span>
+                    <span>
+                      <span className="flex items-center gap-2 text-sm font-normal text-white">
+                        <Camera size={15} aria-hidden="true" />
+                        profile photo
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-[#8f8577]">
+                        Upload later. Initials work for the free basic profile.
+                      </span>
+                    </span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {accentOptions.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        aria-label={`Use ${color}`}
+                        onClick={() => setSelectedAccent(color)}
+                        className={`size-8 rounded-full border transition ${selectedAccent === color ? "border-white" : "border-white/15"}`}
+                        style={{ background: color }}
+                      />
+                    ))}
+                  </div>
+                  <p className="mt-4 text-xs leading-5 text-[#8f8577]">
+                    No custom background upload in the basic version. Start with photo, color, vibe, and theme.
+                  </p>
+                </div>
+              </div>
+            </ProfileSection>
+
+            {links.length > 0 && (
+              <ProfileSection icon={<Link2 size={17} />} id="links" title="Links and socials">
+                <div className="grid gap-3 md:grid-cols-2">
+                  {coreLinks.map((link, index) => (
+                    <a
+                      key={`${link.label}-${link.url}`}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`group flex min-h-[76px] items-center justify-between gap-4 rounded-md border p-4 transition ${
+                        index === 0
+                          ? "border-[#ff6a00]/40 bg-[#ff6a00] text-black hover:bg-[#e55f00]"
+                          : "border-white/10 bg-white/[0.035] text-white hover:border-[#ff6a00]/50"
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-base font-normal">{link.label}</span>
+                        <span className={`mt-1 block truncate text-sm ${index === 0 ? "text-black/70" : "text-[#8f8577]"}`}>
+                          {displayUrl(link.url)}
+                        </span>
+                      </span>
+                      <ArrowUpRight size={16} className="shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
+                    </a>
+                  ))}
+                </div>
+                {socialLinks.length > 0 && (
+                  <div className="mt-4 border-t border-white/10 pt-4">
+                    <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                      social profiles
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {socialLinks.map((link) => (
+                        <a
+                          key={`${link.label}-${link.url}`}
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-md border border-white/10 bg-white/[0.035] p-3 text-sm font-normal text-white transition hover:border-[#ff6a00]/45"
+                        >
+                          <span className="block">{link.label}</span>
+                          <span className="mt-1 block truncate text-xs text-[#8f8577]">{displayUrl(link.url)}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </ProfileSection>
+            )}
+
+            {roomModules.length > 0 && (
+              <ProfileSection icon={<Grid3X3 size={17} />} id="sections" title="Profile sections">
+                <div className="grid gap-4">
+                  {roomModules.map((module) => (
+                    <article key={module.id} className="rounded-md border border-white/10 bg-white/[0.035] p-5">
+                      <div
+                        className="mb-2 text-[10px] font-normal uppercase tracking-[0.16em]"
+                        style={{ color: house.primaryColor === "#050505" ? "#a99f91" : house.primaryColor }}
+                      >
+                        {roomLabel(module.room)}
+                      </div>
+                      <h2 className="text-[25px] font-normal uppercase leading-tight text-white">{module.title}</h2>
+                      <p className="mt-3 text-sm leading-7 text-[#c8bdae]">{module.body}</p>
+                      {module.bullets && (
+                        <div className="mt-4 grid gap-2 md:grid-cols-3">
+                          {module.bullets.map((bullet) => (
+                            <div key={bullet} className="rounded-md border border-white/10 bg-black/20 p-3 text-sm leading-5 text-[#d8cfc0]">
+                              {bullet}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {module.cta && (
+                        <a
+                          href={module.cta.href}
+                          className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-[#ff6a00]/35 px-3 text-xs font-normal uppercase tracking-[0.12em] text-[#ffb16b] transition hover:border-[#ff6a00]"
+                        >
+                          {module.cta.label}
+                          <ArrowUpRight size={13} aria-hidden="true" />
+                        </a>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </ProfileSection>
+            )}
+
+            {visibleItems.length > 0 && (
+              <ProfileSection icon={<Package size={17} />} id="products" title="Products and offers">
+                <div className="grid gap-3 md:grid-cols-2">
+                  {visibleItems.map((item) => (
+                    <ItemCard item={item} key={item.id} />
+                  ))}
+                </div>
+              </ProfileSection>
+            )}
+
+            {visibleSchedule.length > 0 && (
+              <ProfileSection icon={<CalendarDays size={17} />} id="schedule" title="Schedule">
+                <div className="grid gap-3 md:grid-cols-2">
+                  {visibleSchedule.map((item) => (
+                    <ScheduleCard item={item} key={item.id} />
+                  ))}
+                </div>
+              </ProfileSection>
+            )}
+
+            {visibleUpdates.length > 0 && (
+              <ProfileSection icon={<Activity size={17} />} id="activity" title="Activity">
+                <div className="grid gap-3">
+                  {visibleUpdates.map((update) => (
+                    <a
+                      key={update.id}
+                      href={update.url ?? "#"}
+                      target={update.url ? "_blank" : undefined}
+                      rel={update.url ? "noreferrer" : undefined}
+                      className="rounded-md border border-white/10 bg-white/[0.035] p-4 transition hover:border-[#ff6a00]/45"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-base font-normal text-white">{update.title}</h3>
+                        <span className={`shrink-0 border px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] ${statusStyle(update.status)}`}>
+                          {statusLabels[update.status]}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-[#b8ad9f]">{update.detail}</p>
+                    </a>
+                  ))}
+                </div>
+              </ProfileSection>
+            )}
+
+            {visibleBestOf.length > 0 && (
+              <ProfileSection icon={<Star size={17} />} id="best-of" title="Best of">
+                <p className="mb-4 text-sm leading-6 text-[#b8ad9f]">
+                  A starter place for the recommendations that make a profile feel personal:
+                  tools, shows, local vendors, books, products, places, and anything worth passing along.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {visibleBestOf.map((item) => (
+                    <ItemCard item={item} key={item.id} />
+                  ))}
+                </div>
+              </ProfileSection>
+            )}
+          </section>
+
+          <aside className="grid content-start gap-5">
+            <Panel icon={<ShieldCheck size={17} />} title="Profile setup">
+              <Field label="handle" value={`/${house.handle}`} />
+              <Field label="owner" value={house.owner} />
+              <Field label="visibility" value={house.visibility} />
+              <Field label="status" value={statusLabels[house.status]} />
+              <Field label="type" value={house.type} />
+              <Field label="theme" value={selectedTheme} />
+              <Field label="vibe" value={selectedVibe} />
+            </Panel>
+
+            <Panel icon={<Gamepad2 size={17} />} title="Use cases">
+              <div className="grid gap-2 text-sm leading-6 text-[#c8bdae]">
+                <span>Author platform</span>
+                <span>Gaming profile</span>
+                <span>Local favorites</span>
+                <span>Project portfolio</span>
+                <span>Linktree replacement</span>
+              </div>
+            </Panel>
+
+            <Panel icon={<CheckCircle2 size={17} />} title="Completeness">
+              <div className="grid gap-2">
+                {setupChecks.map((check) => (
+                  <span
+                    key={check.label}
+                    className={`flex min-h-10 items-center justify-between rounded-md border px-3 text-sm font-normal ${
+                      check.done
+                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                        : "border-white/10 bg-white/[0.035] text-[#8f8577]"
+                    }`}
+                  >
+                    {check.label}
+                    <CheckCircle2 size={14} aria-hidden="true" />
+                  </span>
+                ))}
+              </div>
+            </Panel>
+
+            {relationships.length > 0 && (
+              <Panel icon={<UserRound size={17} />} title="Relationships">
+                <div className="grid gap-2">
+                  {relationships.map(({ label, house: relatedHouse }) => (
+                    <Link
+                      key={`${label}-${relatedHouse.id}`}
+                      href={`/${relatedHouse.handle}`}
+                      className="rounded-md border border-white/10 bg-white/[0.035] p-3 transition hover:border-[#ff6a00]/45"
+                    >
+                      <span className="block truncate text-sm font-normal text-white">{relatedHouse.name}</span>
+                      <span className="mt-1 block text-[10px] font-normal uppercase tracking-[0.12em] text-[#8f8577]">
+                        {label}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </Panel>
+            )}
+          </aside>
+        </div>
+      </section>
     </main>
   );
+}
+
+function RoomButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-h-10 rounded-md px-3 text-left text-[12px] font-normal uppercase tracking-[0.12em] transition ${
+        active
+          ? "bg-[#ff6a00] text-black"
+          : "text-[#a99f91] hover:bg-white/[0.04] hover:text-white"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ProfileSection({
+  children,
+  icon,
+  id,
+  title,
+}: {
+  children: ReactNode;
+  icon: ReactNode;
+  id: string;
+  title: string;
+}) {
+  return (
+    <section id={id} className="scroll-mt-24 rounded-lg border border-white/10 bg-[#0d0d0d] p-5">
+      <div className="flex items-center gap-2">
+        <span className="text-[#ff6a00]">{icon}</span>
+        <h2 className="text-xl font-normal text-white">{title}</h2>
+      </div>
+      <div className="mt-4 text-base leading-7 text-[#c8bdae]">{children}</div>
+    </section>
+  );
+}
+
+function Panel({ children, icon, title }: { children: ReactNode; icon: ReactNode; title: string }) {
+  return (
+    <section className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
+      <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[#8f8577]">
+        <span className="text-[#ff6a00]">{icon}</span>
+        {title}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ItemCard({ item }: { item: HouseItem }) {
+  return (
+    <a
+      href={item.url ?? "#"}
+      target={item.url?.startsWith("http") ? "_blank" : undefined}
+      rel={item.url?.startsWith("http") ? "noreferrer" : undefined}
+      className="rounded-md border border-white/10 bg-white/[0.035] p-4 transition hover:border-[#ff6a00]/45"
+    >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+          {item.itemType}
+        </span>
+        <span className={`border px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] ${statusStyle(item.status)}`}>
+          {statusLabels[item.status]}
+        </span>
+      </div>
+      <h3 className="text-lg font-normal text-white">{item.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[#b8ad9f]">{item.description}</p>
+      {(item.price || item.ctaLabel) && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-normal uppercase tracking-[0.12em] text-[#d8cfc0]">
+          {item.price && <span className="text-[#ffb16b]">{item.price}</span>}
+          {item.ctaLabel && <span>{item.ctaLabel}</span>}
+        </div>
+      )}
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-normal uppercase tracking-[0.12em] text-[#8f8577]">
+        {item.tags.map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </div>
+    </a>
+  );
+}
+
+function ScheduleCard({ item }: { item: ScheduleItem }) {
+  return (
+    <a
+      href={item.url ?? "#"}
+      target={item.url?.startsWith("http") ? "_blank" : undefined}
+      rel={item.url?.startsWith("http") ? "noreferrer" : undefined}
+      className="rounded-md border border-white/10 bg-white/[0.035] p-4 transition hover:border-[#ff6a00]/45"
+    >
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+          {formatScheduleDate(item.startsAt)}
+        </span>
+        <span className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#d8cfc0]">
+          {item.type}
+        </span>
+      </div>
+      <h3 className="text-base font-normal text-white">{item.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[#b8ad9f]">{item.detail}</p>
+    </a>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-b border-white/10 py-2 first:pt-0 last:border-b-0 last:pb-0">
+      <div className="text-[9px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-normal text-[#d8cfc0]">{value}</div>
+    </div>
+  );
+}
+
+function formatScheduleDate(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
