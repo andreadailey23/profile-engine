@@ -6,17 +6,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   AppWindow,
+  BookOpen,
   Check,
   Copy,
   ExternalLink,
+  Gamepad2,
   Home,
   Info,
+  MapPin,
   Moon,
+  Newspaper,
   Search,
   Settings,
   ShoppingBag,
   Star,
   Sun,
+  Target,
   Plug,
   UserRound,
   type LucideIcon,
@@ -42,11 +47,20 @@ const primaryNav: NavItem[] = [
 ];
 
 const siteNav: NavItem[] = [
-  { href: "/#apps", label: "Apps", icon: AppWindow },
-  { href: "/#connectors", label: "Connectors", icon: Plug },
   { href: "/profiles", label: "Profiles", icon: UserRound },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
   { href: "/best-of", label: "Best of", icon: Star },
+];
+
+const appsConnectorNav: NavItem[] = [
+  { href: "/building-empires", label: "Profile Engine", icon: UserRound },
+  { href: "https://tryatla.co", label: "Atla", icon: AppWindow },
+  { href: "https://tryatla.co/signin?mode=signup&next=/ai-inventory", label: "AI Inventory", icon: Plug },
+  { href: "https://tryimprint.co", label: "Imprint", icon: BookOpen },
+  { href: "https://getinbetween.app", label: "Inbetween", icon: MapPin },
+  { href: "https://streamo.gg", label: "Streamo", icon: Gamepad2 },
+  { href: "https://habitsthatmatter.com", label: "Habits That Matter", icon: Target },
+  { href: "https://whatdeployed.com", label: "WhatDeployed", icon: Newspaper },
 ];
 
 const socialLinks = [
@@ -73,9 +87,16 @@ function isActivePath(pathname: string, href: string) {
 function NavItems({ items, pathname }: { items: NavItem[]; pathname: string }) {
   return items.map((item) => {
     const Icon = item.icon;
+    const external = item.href.startsWith("http");
 
     return (
-      <Link className={isActivePath(pathname, item.href) ? "active" : undefined} href={item.href} key={item.href}>
+      <Link
+        className={isActivePath(pathname, item.href) ? "active" : undefined}
+        href={item.href}
+        key={item.href}
+        rel={external ? "noopener noreferrer" : undefined}
+        target={external ? "_blank" : undefined}
+      >
         <Icon size={16} strokeWidth={2} aria-hidden="true" />
         <span>{item.label}</span>
       </Link>
@@ -392,6 +413,10 @@ export default function BuildingEmpiresShell({
           <div className="aw-nav-group">
             <div className="aw-nav-label">Explore</div>
             <NavItems items={siteNav} pathname={pathname} />
+          </div>
+          <div className="aw-nav-group">
+            <div className="aw-nav-label">Apps &amp; Connectors</div>
+            <NavItems items={appsConnectorNav} pathname={pathname} />
           </div>
         </nav>
 

@@ -11,6 +11,7 @@ import {
   Link2,
   MoreVertical,
   Package,
+  Sparkles,
   Settings,
   UserRound,
 } from "lucide-react";
@@ -146,6 +147,10 @@ function profileBannerVisibleStorageKey(handle: string) {
   return `building-empires-profile-banner-visible-${handle}`;
 }
 
+function profileRecommendedStorageKey(handle: string) {
+  return `building-empires-profile-recommended-${handle}`;
+}
+
 function validThemeId(value: string | null): ProfileThemeId | undefined {
   return profileThemes.some((theme) => theme.id === value) ? (value as ProfileThemeId) : undefined;
 }
@@ -266,6 +271,7 @@ export default function ProfileView({ profile }: Props) {
   const [bannerVisible, setBannerVisible] = useState(true);
   const [coverOverride, setCoverOverride] = useState<ProfileCoverId | undefined>();
   const [libraryFilter, setLibraryFilter] = useState<ProfileLibraryItemType | "all">("all");
+  const [recommended, setRecommended] = useState(false);
   const [secondaryAccentOverride, setSecondaryAccentOverride] = useState<string | undefined>();
   const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
   const theme = getProfileTheme(themeOverride ?? house.themeId);
@@ -407,6 +413,25 @@ export default function ProfileView({ profile }: Props) {
     };
   }, [house.handle]);
 
+  useEffect(() => {
+    function syncRecommended() {
+      setRecommended(window.localStorage.getItem(profileRecommendedStorageKey(house.handle)) === "true");
+    }
+
+    syncRecommended();
+    window.addEventListener("storage", syncRecommended);
+
+    return () => {
+      window.removeEventListener("storage", syncRecommended);
+    };
+  }, [house.handle]);
+
+  function toggleRecommended() {
+    const nextRecommended = !recommended;
+    setRecommended(nextRecommended);
+    window.localStorage.setItem(profileRecommendedStorageKey(house.handle), String(nextRecommended));
+  }
+
   const professionalModules = useMemo(
     () => modules.filter((module) => professionalRooms.includes(module.room)),
     [modules],
@@ -529,12 +554,25 @@ export default function ProfileView({ profile }: Props) {
                   <p className="max-w-3xl text-[15px] leading-6 text-[var(--profile-text-soft)]">
                     {house.shortDescription}
                   </p>
-                  <div className="flex shrink-0 justify-end gap-1.5 lg:self-end">
+                  <div className="flex shrink-0 flex-wrap justify-end gap-1.5 lg:self-end">
                     <button className="inline-flex h-7 items-center rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-button-text)] transition hover:opacity-90" type="button">
                       Follow
                     </button>
                     <button className="inline-flex h-7 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" type="button">
                       Support
+                    </button>
+                    <button
+                      aria-pressed={recommended}
+                      className={
+                        recommended
+                          ? "inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent-soft)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-accent-strong)] transition hover:opacity-90"
+                          : "inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]"
+                      }
+                      onClick={toggleRecommended}
+                      type="button"
+                    >
+                      <Sparkles size={11} strokeWidth={1.9} aria-hidden="true" />
+                      Recommend
                     </button>
                     <button
                       aria-label="More profile actions"
