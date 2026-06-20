@@ -28,20 +28,30 @@ import type { ProfileThemeId } from "@/lib/engine/types";
 
 type SettingsTab = "profile" | "professional" | "library" | "links" | "schedule" | "appearance" | "sharing" | "account";
 
+type AvatarSettings = {
+  color: string;
+  image?: string;
+  mode: "fill" | "outline";
+};
+
 const profilePath = "/andrea-dailey";
 const profileHandle = "andrea-dailey";
 const productionOrigin = "https://buildingempires.co";
 const profileThemeStorageKey = `building-empires-profile-theme-${profileHandle}`;
 const profileCoverStorageKey = `building-empires-profile-cover-${profileHandle}`;
 const profileAccentStorageKey = `building-empires-profile-accent-${profileHandle}`;
+const profileSecondaryAccentStorageKey = `building-empires-profile-accent-secondary-${profileHandle}`;
+const profileAvatarStorageKey = `building-empires-profile-avatar-${profileHandle}`;
+const profileBannerIdentityStorageKey = `building-empires-profile-banner-identities-${profileHandle}`;
+const profileBannerVisibleStorageKey = `building-empires-profile-banner-visible-${profileHandle}`;
 
 const tabs: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
+  { key: "appearance", label: "Appearance", icon: Palette },
   { key: "profile", label: "Profile", icon: UserRound },
   { key: "professional", label: "Professional", icon: Briefcase },
   { key: "library", label: "Library", icon: BookOpen },
   { key: "links", label: "Links", icon: Link2 },
   { key: "schedule", label: "Schedule", icon: CalendarDays },
-  { key: "appearance", label: "Appearance", icon: Palette },
   { key: "sharing", label: "Sharing", icon: Share2 },
   { key: "account", label: "Account", icon: CreditCard },
 ];
@@ -49,9 +59,40 @@ const tabs: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
 const validTabs = new Set<SettingsTab>(tabs.map((tab) => tab.key));
 const validThemeIds = new Set<ProfileThemeId>(profileThemes.map((theme) => theme.id));
 const accentOptions = ["#ff6a00", "#ef3b2d", "#a855f7", "#38bdf8", "#22c55e", "#ec4899", "#f5c542", "#f7f0df"];
+const identityOptions = ["Author", "Entrepreneur", "Builder", "Product Builder", "Systems Thinker"];
+const defaultBannerIdentities = ["Author", "Builder", "Systems Thinker"];
 
 function validAccentColor(value: string | null | undefined) {
   return value && /^#[0-9a-fA-F]{6}$/.test(value) ? value : undefined;
+}
+
+function parseAvatarSettings(value: string | null): AvatarSettings {
+  if (!value) return { color: "#ff6a00", mode: "fill" };
+
+  try {
+    const parsed = JSON.parse(value) as Partial<AvatarSettings>;
+    const mode = parsed.mode === "outline" ? "outline" : "fill";
+    const color = validAccentColor(parsed.color) ?? "#ff6a00";
+    const image = typeof parsed.image === "string" && parsed.image.startsWith("data:image/") ? parsed.image : undefined;
+
+    return { color, image, mode };
+  } catch {
+    return { color: "#ff6a00", mode: "fill" };
+  }
+}
+
+function parseBannerIdentities(value: string | null) {
+  if (!value) return defaultBannerIdentities;
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return defaultBannerIdentities;
+
+    const selected = parsed.filter((item): item is string => identityOptions.includes(item)).slice(0, 3);
+    return selected.length > 0 ? selected : defaultBannerIdentities;
+  } catch {
+    return defaultBannerIdentities;
+  }
 }
 
 async function writeClipboardText(text: string) {
@@ -90,14 +131,17 @@ function currentProfileUrl() {
 
 function settingsTabFromUrl() {
   const tab = new URLSearchParams(window.location.search).get("tab");
-  return tab && validTabs.has(tab as SettingsTab) ? (tab as SettingsTab) : "profile";
+  return tab && validTabs.has(tab as SettingsTab) ? (tab as SettingsTab) : "appearance";
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
+  const [bannerIdentities, setBannerIdentities] = useState<string[]>(defaultBannerIdentities);
+  const [bannerVisible, setBannerVisible] = useState(true);
   const [copyLabel, setCopyLabel] = useState("Copy");
   const [selectedAccent, setSelectedAccent] = useState<string | undefined>();
   const [selectedCover, setSelectedCover] = useState<ProfileCoverId>("grid-glow");
+  const [selectedSecondaryAccent, setSelectedSecondaryAccent] = useState<string | undefined>();
   const [selectedTheme, setSelectedTheme] = useState<ProfileThemeId>("midnight");
 
   useEffect(() => {
@@ -137,6 +181,15 @@ export default function SettingsPage() {
 
     const storedAccent = validAccentColor(window.localStorage.getItem(profileAccentStorageKey));
     if (storedAccent) window.requestAnimationFrame(() => setSelectedAccent(storedAccent));
+
+    const storedSecondaryAccent = validAccentColor(window.localStorage.getItem(profileSecondaryAccentStorageKey));
+    if (storedSecondaryAccent) window.requestAnimationFrame(() => setSelectedSecondaryAccent(storedSecondaryAccent));
+
+    const storedBannerVisible = window.localStorage.getItem(profileBannerVisibleStorageKey);
+    window.requestAnimationFrame(() => {
+      setBannerVisible(storedBannerVisible !== "false");
+      setBannerIdentities(parseBannerIdentities(window.localStorage.getItem(profileBannerIdentityStorageKey)));
+    });
   }, []);
 
   function selectTab(tab: SettingsTab) {
@@ -161,6 +214,8 @@ export default function SettingsPage() {
   }
 
   function selectTheme(themeId: ProfileThemeId) {
+    const theme = getProfileTheme(themeId);
+
     setSelectedTheme(themeId);
     window.localStorage.setItem(profileThemeStorageKey, themeId);
     window.dispatchEvent(
@@ -168,6 +223,8 @@ export default function SettingsPage() {
         detail: { handle: profileHandle, themeId },
       }),
     );
+
+    if (!selectedAccent) syncAvatarAccent(theme.colors.accent);
   }
 
   function selectCover(coverId: ProfileCoverId) {
@@ -194,6 +251,58 @@ export default function SettingsPage() {
         detail: { handle: profileHandle, accent },
       }),
     );
+
+    syncAvatarAccent(accent ?? getProfileTheme(selectedTheme).colors.accent);
+  }
+
+  function selectSecondaryAccent(accent: string | undefined) {
+    setSelectedSecondaryAccent(accent);
+
+    if (accent) {
+      window.localStorage.setItem(profileSecondaryAccentStorageKey, accent);
+    } else {
+      window.localStorage.removeItem(profileSecondaryAccentStorageKey);
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("buildingempires:profile-accent-secondary", {
+        detail: { handle: profileHandle, accent },
+      }),
+    );
+  }
+
+  function syncAvatarAccent(color: string) {
+    const currentAvatar = parseAvatarSettings(window.localStorage.getItem(profileAvatarStorageKey));
+    const nextAvatar = { ...currentAvatar, color };
+
+    window.localStorage.setItem(profileAvatarStorageKey, JSON.stringify(nextAvatar));
+    window.dispatchEvent(
+      new CustomEvent("buildingempires:profile-avatar", {
+        detail: { avatar: nextAvatar, handle: profileHandle },
+      }),
+    );
+  }
+
+  function saveBannerSettings(visible: boolean, identities: string[]) {
+    setBannerVisible(visible);
+    setBannerIdentities(identities);
+    window.localStorage.setItem(profileBannerVisibleStorageKey, String(visible));
+    window.localStorage.setItem(profileBannerIdentityStorageKey, JSON.stringify(identities));
+    window.dispatchEvent(
+      new CustomEvent("buildingempires:profile-banner", {
+        detail: { handle: profileHandle, identities, visible },
+      }),
+    );
+  }
+
+  function toggleBannerIdentity(identity: string) {
+    const nextIdentities = bannerIdentities.includes(identity)
+      ? bannerIdentities.filter((item) => item !== identity)
+      : bannerIdentities.length < 3
+        ? [...bannerIdentities, identity]
+        : bannerIdentities;
+
+    saveBannerSettings(bannerVisible, nextIdentities);
   }
 
   return (
@@ -212,7 +321,14 @@ export default function SettingsPage() {
 
           <section className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-10">
             <SettingsReturnBar />
-            {activeTab === "profile" && <ProfileSettings />}
+            {activeTab === "profile" && (
+              <ProfileSettings
+                bannerIdentities={bannerIdentities}
+                bannerVisible={bannerVisible}
+                onSelectBannerIdentity={toggleBannerIdentity}
+                onToggleBanner={() => saveBannerSettings(!bannerVisible, bannerIdentities)}
+              />
+            )}
             {activeTab === "professional" && <ProfessionalSettings />}
             {activeTab === "library" && <LibrarySettings />}
             {activeTab === "links" && <LinksSettings />}
@@ -221,9 +337,11 @@ export default function SettingsPage() {
               <AppearanceSettings
                 selectedAccent={selectedAccent}
                 selectedCover={selectedCover}
+                selectedSecondaryAccent={selectedSecondaryAccent}
                 selectedTheme={selectedTheme}
                 onSelectAccent={selectAccent}
                 onSelectCover={selectCover}
+                onSelectSecondaryAccent={selectSecondaryAccent}
                 onSelectTheme={selectTheme}
               />
             )}
@@ -297,7 +415,17 @@ function SettingsHeader({ eyebrow, title }: { eyebrow: string; title: string }) 
   );
 }
 
-function ProfileSettings() {
+function ProfileSettings({
+  bannerIdentities,
+  bannerVisible,
+  onSelectBannerIdentity,
+  onToggleBanner,
+}: {
+  bannerIdentities: string[];
+  bannerVisible: boolean;
+  onSelectBannerIdentity: (identity: string) => void;
+  onToggleBanner: () => void;
+}) {
   return (
     <>
       <SettingsHeader eyebrow="profile" title="Public profile" />
@@ -305,13 +433,75 @@ function ProfileSettings() {
         <Field label="Name" value="Andrea Dailey" />
         <Field label="Handle" value="@andrea-dailey" />
         <Field label="Bio" value="Builder, author, product operator, and public systems maker." />
-        <Field label="Identity" value="Author, Entrepreneur, Builder, Product Builder, Systems Thinker" />
+        <IdentityField
+          bannerIdentities={bannerIdentities}
+          bannerVisible={bannerVisible}
+          onSelectBannerIdentity={onSelectBannerIdentity}
+          onToggleBanner={onToggleBanner}
+        />
         <Field label="Vibe" value="Sharp, Minimal, Useful, Funny, High Signal" />
         <Field label="Highlights" value="Products shipped: 10+, Books published: 2, Systems built: 6" />
         <Field label="Views" value="Default, Marketplace, Professional" />
         <Field label="Avatar" value="Photo upload, initials fill or outline, and color" />
       </SettingsPanel>
     </>
+  );
+}
+
+function IdentityField({
+  bannerIdentities,
+  bannerVisible,
+  onSelectBannerIdentity,
+  onToggleBanner,
+}: {
+  bannerIdentities: string[];
+  bannerVisible: boolean;
+  onSelectBannerIdentity: (identity: string) => void;
+  onToggleBanner: () => void;
+}) {
+  return (
+    <div className="grid gap-3 p-4 sm:grid-cols-[150px_minmax(0,1fr)]">
+      <div className="flex items-center gap-2 sm:block">
+        <label className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
+          Identity
+        </label>
+        <button
+          className={`rounded-md border px-2 py-1 text-[9px] font-normal uppercase tracking-[0.1em] transition sm:mt-2 ${
+            bannerVisible
+              ? "border-[#ff6a00] bg-[#ff6a00]/10 text-[#ffb16b]"
+              : "border-white/10 bg-white/[0.025] text-[#8f8577] hover:border-white/25 hover:text-[#f7f0df]"
+          }`}
+          onClick={onToggleBanner}
+          type="button"
+        >
+          Top {bannerVisible ? "on" : "off"}
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {identityOptions.map((identity) => {
+          const selected = bannerIdentities.includes(identity);
+          const locked = !selected && bannerIdentities.length >= 3;
+
+          return (
+            <button
+              className={`rounded-md border px-3 py-2 text-[10px] font-normal uppercase tracking-[0.12em] transition ${
+                selected
+                  ? "border-[#ff6a00] bg-[#ff6a00]/10 text-[#ffb16b]"
+                  : locked
+                    ? "border-white/10 bg-white/[0.015] text-[#5f574d]"
+                    : "border-white/10 bg-white/[0.035] text-[#c8bdae] hover:border-[#ff6a00]/50 hover:text-white"
+              }`}
+              disabled={locked}
+              key={identity}
+              onClick={() => onSelectBannerIdentity(identity)}
+              type="button"
+            >
+              {identity}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -462,88 +652,180 @@ function ScheduleSettings() {
 function AppearanceSettings({
   selectedAccent,
   selectedCover,
+  selectedSecondaryAccent,
   selectedTheme,
   onSelectAccent,
   onSelectCover,
+  onSelectSecondaryAccent,
   onSelectTheme,
 }: {
   selectedAccent: string | undefined;
   selectedCover: ProfileCoverId;
+  selectedSecondaryAccent: string | undefined;
   selectedTheme: ProfileThemeId;
   onSelectAccent: (accent: string | undefined) => void;
   onSelectCover: (coverId: ProfileCoverId) => void;
+  onSelectSecondaryAccent: (accent: string | undefined) => void;
   onSelectTheme: (themeId: ProfileThemeId) => void;
 }) {
   const activeTheme = getProfileTheme(selectedTheme);
   const activeAccent = selectedAccent ?? activeTheme.colors.accent;
+  const activeSecondaryAccent = selectedSecondaryAccent ?? activeTheme.colors.accentStrong;
+  const previewColors = {
+    ...activeTheme.colors,
+    accent: activeAccent,
+    accentStrong: activeSecondaryAccent,
+    accentSoft: `${activeAccent}24`,
+  };
   const swatches = Array.from(new Set([activeTheme.colors.accent, ...accentOptions]));
+  const secondarySwatches = Array.from(new Set([activeTheme.colors.accentStrong, ...accentOptions]));
 
   return (
     <>
       <SettingsHeader eyebrow="appearance" title="Style" />
       <section className="grid gap-4">
         <div className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
-          <div className="grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center">
+          <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-stretch">
             <div>
               <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
-                base
+                current style
               </div>
               <div className="mt-1 text-xl font-normal uppercase leading-none text-white">
                 {activeTheme.name}
               </div>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="size-5 rounded-md border border-white/15" style={{ background: activeAccent }} />
+                <span className="size-5 rounded-md border border-white/15" style={{ background: activeSecondaryAccent }} />
+              </div>
+              <p className="mt-3 text-sm leading-6 text-[#b8ad9f]">
+                Primary color updates the profile theme, buttons, cover, and initials circle.
+              </p>
             </div>
-            <div className="grid grid-cols-5 overflow-hidden rounded-md border border-white/10">
-              {["canvas", "surface", "text", "muted", "border"].map((key) => (
-                <span
-                  aria-label={key}
-                  className="h-11"
-                  key={key}
-                  style={{ background: activeTheme.colors[key as keyof typeof activeTheme.colors] }}
-                />
-              ))}
+            <div
+              className="overflow-hidden rounded-md border border-white/10"
+              style={{ background: activeTheme.colors.surface }}
+            >
+              <div
+                className="h-24 border-b border-white/10"
+                style={{ background: profileCoverBackground(previewColors, selectedCover) }}
+              />
+              <div className="grid gap-3 p-4 sm:grid-cols-[64px_minmax(0,1fr)_auto] sm:items-center">
+                <div
+                  className="-mt-10 grid size-16 place-items-center rounded-full border-4 text-xl font-normal"
+                  style={{
+                    background: activeAccent,
+                    borderColor: activeTheme.colors.surface,
+                    color: activeTheme.colors.buttonText,
+                  }}
+                >
+                  AD
+                </div>
+                <div className="min-w-0">
+                  <div className="text-lg font-normal uppercase leading-none" style={{ color: activeTheme.colors.text }}>
+                    Andrea Dailey
+                  </div>
+                  <div className="mt-2 h-2 w-48 max-w-full rounded-full" style={{ background: activeTheme.colors.textSoft }} />
+                </div>
+                <div className="flex gap-2">
+                  <span
+                    className="h-8 rounded-md px-3 text-[10px] font-normal uppercase leading-8 tracking-[0.1em]"
+                    style={{ background: activeAccent, color: activeTheme.colors.buttonText }}
+                  >
+                    Follow
+                  </span>
+                  <span
+                    className="h-8 rounded-md border px-3 text-[10px] font-normal uppercase leading-8 tracking-[0.1em]"
+                    style={{ borderColor: activeTheme.colors.border, color: activeTheme.colors.text }}
+                  >
+                    Support
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
-          <div className="mb-3">
+          <div className="mb-4">
             <div>
               <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
-                accent color
+                color
               </div>
               <h2 className="mt-1 text-xl font-normal uppercase leading-none text-white">
-                Color
+                Profile color
               </h2>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              className={`inline-flex min-h-10 items-center rounded-md border px-3 text-xs font-normal uppercase tracking-[0.1em] transition ${
-                !selectedAccent
-                  ? "border-[#ff6a00] bg-[#ff6a00]/10 text-[#ffb16b]"
-                  : "border-white/10 bg-white/[0.025] text-[#8f8577] hover:border-white/25 hover:text-[#f7f0df]"
-              }`}
-              onClick={() => onSelectAccent(undefined)}
-              type="button"
-            >
-              Default
-            </button>
-            {swatches.map((color) => {
-              const active = activeAccent.toLowerCase() === color.toLowerCase();
-
-              return (
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div>
+              <div className="mb-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                Primary
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <button
-                  aria-label={`Use ${color}`}
-                  className={`size-10 rounded-md border transition ${
-                    active ? "border-white shadow-[0_0_0_2px_#ff6a00]" : "border-white/15 hover:border-white/45"
+                  className={`inline-flex min-h-10 items-center rounded-md border px-3 text-xs font-normal uppercase tracking-[0.1em] transition ${
+                    !selectedAccent
+                      ? "border-[#ff6a00] bg-[#ff6a00]/10 text-[#ffb16b]"
+                      : "border-white/10 bg-white/[0.025] text-[#8f8577] hover:border-white/25 hover:text-[#f7f0df]"
                   }`}
-                  key={color}
-                  onClick={() => onSelectAccent(color)}
-                  style={{ background: color }}
+                  onClick={() => onSelectAccent(undefined)}
                   type="button"
-                />
-              );
-            })}
+                >
+                  Default
+                </button>
+                {swatches.map((color) => {
+                  const active = activeAccent.toLowerCase() === color.toLowerCase();
+
+                  return (
+                    <button
+                      aria-label={`Use ${color}`}
+                      className={`size-10 rounded-md border transition ${
+                        active ? "border-white shadow-[0_0_0_2px_#ff6a00]" : "border-white/15 hover:border-white/45"
+                      }`}
+                      key={color}
+                      onClick={() => onSelectAccent(color)}
+                      style={{ background: color }}
+                      type="button"
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[#8f8577]">
+                Highlight
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className={`inline-flex min-h-10 items-center rounded-md border px-3 text-xs font-normal uppercase tracking-[0.1em] transition ${
+                    !selectedSecondaryAccent
+                      ? "border-[#ff6a00] bg-[#ff6a00]/10 text-[#ffb16b]"
+                      : "border-white/10 bg-white/[0.025] text-[#8f8577] hover:border-white/25 hover:text-[#f7f0df]"
+                  }`}
+                  onClick={() => onSelectSecondaryAccent(undefined)}
+                  type="button"
+                >
+                  Default
+                </button>
+                {secondarySwatches.map((color) => {
+                  const active = activeSecondaryAccent.toLowerCase() === color.toLowerCase();
+
+                  return (
+                    <button
+                      aria-label={`Use highlight ${color}`}
+                      className={`size-10 rounded-md border transition ${
+                        active ? "border-white shadow-[0_0_0_2px_#ff6a00]" : "border-white/15 hover:border-white/45"
+                      }`}
+                      key={color}
+                      onClick={() => onSelectSecondaryAccent(color)}
+                      style={{ background: color }}
+                      type="button"
+                    />
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -577,11 +859,7 @@ function AppearanceSettings({
                     className="relative mb-3 h-20 overflow-hidden rounded-md border border-white/10"
                     style={{
                       background: profileCoverBackground(
-                        {
-                          ...activeTheme.colors,
-                          accent: activeAccent,
-                          accentSoft: `${activeAccent}24`,
-                        },
+                        previewColors,
                         cover.id,
                       ),
                     }}

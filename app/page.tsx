@@ -23,22 +23,22 @@ function statusStyle(status: HouseStatus) {
 
 const buildingLanes = [
   {
-    id: "tools",
-    title: "Tools",
-    body: "A curated index of useful products, software, creator tools, affiliate paths, and operating stacks.",
-    items: ["Profile setup", "WhatDeployed", "Go High Level", "Beehiiv", "Canva"],
+    id: "apps",
+    title: "Apps",
+    body: "The owned app layer across the ecosystem: profile tools, work systems, publishing, planning, gaming, and media.",
+    items: ["Profile Engine", "Atla", "Imprint", "Inbetween", "Streamo"],
   },
   {
-    id: "content",
-    title: "Content",
-    body: "Plain-English notes, build context, recommendations, and useful explainers around what is worth using.",
-    items: ["Tool notes", "Build logs", "How-tos", "Recommendations"],
+    id: "connectors",
+    title: "Connectors",
+    body: "Smaller product lanes that connect accounts, tools, records, alerts, approvals, inventory, and next actions.",
+    items: ["AI Inventory", "Atla Inbox", "Atla Admin", "Tool inventory", "Profile slices"],
   },
   {
-    id: "profiles",
-    title: "Profiles",
-    body: "A public profile layer anyone can use to collect their links, tools, offers, products, content, and context.",
-    items: ["People", "Brands", "Products", "Projects"],
+    id: "products",
+    title: "Products",
+    body: "Books, shops, product lanes, media properties, digital goods, and useful things Andrea offers or recommends.",
+    items: ["Habits That Matter", "STOP Collection", "WhatDeployed", "Playwave Radio"],
   },
   {
     id: "marketplace",
@@ -58,7 +58,7 @@ export default function Home() {
         <section className="grid gap-8 border-b border-white/10 pb-10 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div>
             <div className="mb-5 text-[11px] font-normal uppercase tracking-[0.16em] text-[#ff6a00]">
-              tools / content / profiles / marketplace
+              apps / connectors / products / marketplace
             </div>
             <h1 className="max-w-4xl text-[46px] font-normal uppercase leading-[0.95] tracking-normal text-white sm:text-6xl lg:text-7xl">
               Tools and profiles for people with a world to share.

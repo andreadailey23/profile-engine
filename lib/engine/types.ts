@@ -171,7 +171,8 @@ export type HouseItem = {
     | "course"
     | "offer"
     | "collection"
-    | "community";
+    | "community"
+    | "connector";
   kindLabel?: string;
   displayGroup?: "work" | "product" | "pick";
   title: string;

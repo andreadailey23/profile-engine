@@ -9,6 +9,7 @@ import {
   CalendarDays,
   Grid3X3,
   Link2,
+  MoreVertical,
   Package,
   Settings,
   UserRound,
@@ -133,6 +134,18 @@ function profileAccentStorageKey(handle: string) {
   return `building-empires-profile-accent-${handle}`;
 }
 
+function profileSecondaryAccentStorageKey(handle: string) {
+  return `building-empires-profile-accent-secondary-${handle}`;
+}
+
+function profileBannerIdentityStorageKey(handle: string) {
+  return `building-empires-profile-banner-identities-${handle}`;
+}
+
+function profileBannerVisibleStorageKey(handle: string) {
+  return `building-empires-profile-banner-visible-${handle}`;
+}
+
 function validThemeId(value: string | null): ProfileThemeId | undefined {
   return profileThemes.some((theme) => theme.id === value) ? (value as ProfileThemeId) : undefined;
 }
@@ -141,14 +154,20 @@ function validAccentColor(value: string | null | undefined) {
   return value && /^#[0-9a-fA-F]{6}$/.test(value) ? value : undefined;
 }
 
-function profileThemeColors(theme: ReturnType<typeof getProfileTheme>, accentOverride: string | undefined) {
-  if (!accentOverride) return theme.colors;
+function profileThemeColors(
+  theme: ReturnType<typeof getProfileTheme>,
+  accentOverride: string | undefined,
+  secondaryAccentOverride: string | undefined,
+) {
+  if (!accentOverride && !secondaryAccentOverride) return theme.colors;
+
+  const accent = accentOverride ?? theme.colors.accent;
 
   return {
     ...theme.colors,
-    accent: accentOverride,
-    accentStrong: accentOverride,
-    accentSoft: `${accentOverride}24`,
+    accent,
+    accentStrong: secondaryAccentOverride ?? (accentOverride ? accentOverride : theme.colors.accentStrong),
+    accentSoft: `${accent}24`,
   };
 }
 
@@ -172,6 +191,22 @@ function parseAvatarSettings(value: string | null): AvatarSettings | undefined {
     return { color, image, mode };
   } catch {
     return undefined;
+  }
+}
+
+function parseBannerIdentities(value: string | null, availableIdentities: string[]) {
+  const fallback = availableIdentities.slice(0, 3);
+
+  if (!value) return fallback;
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return fallback;
+
+    const selected = parsed.filter((item): item is string => availableIdentities.includes(item)).slice(0, 3);
+    return selected.length > 0 ? selected : fallback;
+  } catch {
+    return fallback;
   }
 }
 
@@ -227,11 +262,14 @@ export default function ProfileView({ profile }: Props) {
   const [activeActionTab, setActiveActionTab] = useState<ProfileActionTab>("connect");
   const [accentOverride, setAccentOverride] = useState<string | undefined>();
   const [avatarOverride, setAvatarOverride] = useState<AvatarSettings | undefined>();
+  const [bannerIdentities, setBannerIdentities] = useState<string[]>(house.roles.slice(0, 3));
+  const [bannerVisible, setBannerVisible] = useState(true);
   const [coverOverride, setCoverOverride] = useState<ProfileCoverId | undefined>();
   const [libraryFilter, setLibraryFilter] = useState<ProfileLibraryItemType | "all">("all");
+  const [secondaryAccentOverride, setSecondaryAccentOverride] = useState<string | undefined>();
   const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
   const theme = getProfileTheme(themeOverride ?? house.themeId);
-  const colors = profileThemeColors(theme, accentOverride);
+  const colors = profileThemeColors(theme, accentOverride, secondaryAccentOverride);
   const cover = getProfileCover(coverOverride);
 
   useEffect(() => {
@@ -275,6 +313,57 @@ export default function ProfileView({ profile }: Props) {
       window.removeEventListener("buildingempires:profile-accent", onAccentChange);
     };
   }, [house.handle]);
+
+  useEffect(() => {
+    function syncStoredSecondaryAccent() {
+      setSecondaryAccentOverride(
+        validAccentColor(window.localStorage.getItem(profileSecondaryAccentStorageKey(house.handle))),
+      );
+    }
+
+    function onSecondaryAccentChange(event: Event) {
+      const detail = (event as CustomEvent<{ accent?: string; handle?: string }>).detail;
+      if (detail?.handle !== house.handle) return;
+      setSecondaryAccentOverride(validAccentColor(detail.accent));
+    }
+
+    syncStoredSecondaryAccent();
+    window.addEventListener("storage", syncStoredSecondaryAccent);
+    window.addEventListener("buildingempires:profile-accent-secondary", onSecondaryAccentChange);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredSecondaryAccent);
+      window.removeEventListener("buildingempires:profile-accent-secondary", onSecondaryAccentChange);
+    };
+  }, [house.handle]);
+
+  useEffect(() => {
+    function syncStoredBanner() {
+      setBannerVisible(window.localStorage.getItem(profileBannerVisibleStorageKey(house.handle)) !== "false");
+      setBannerIdentities(parseBannerIdentities(window.localStorage.getItem(profileBannerIdentityStorageKey(house.handle)), house.roles));
+    }
+
+    function onBannerChange(event: Event) {
+      const detail = (event as CustomEvent<{ handle?: string; identities?: string[]; visible?: boolean }>).detail;
+      if (detail?.handle !== house.handle) return;
+
+      setBannerVisible(detail.visible ?? true);
+      setBannerIdentities(
+        Array.isArray(detail.identities)
+          ? detail.identities.filter((item) => house.roles.includes(item)).slice(0, 3)
+          : house.roles.slice(0, 3),
+      );
+    }
+
+    syncStoredBanner();
+    window.addEventListener("storage", syncStoredBanner);
+    window.addEventListener("buildingempires:profile-banner", onBannerChange);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredBanner);
+      window.removeEventListener("buildingempires:profile-banner", onBannerChange);
+    };
+  }, [house.handle, house.roles]);
 
   useEffect(() => {
     function syncStoredAvatar() {
@@ -339,9 +428,21 @@ export default function ProfileView({ profile }: Props) {
       items.filter(
         (item) =>
           itemDisplayGroup(item) === "product" ||
-          ["book", "collection", "course", "offer", "service", "store", "tool"].includes(item.itemType),
+          ["app", "book", "collection", "connector", "course", "offer", "service", "store", "tool"].includes(item.itemType),
       ),
     [items],
+  );
+  const offerGroups = useMemo(
+    () =>
+      [
+        {
+          title: "Products / Offers",
+          items: offerItems.filter((item) => item.itemType !== "app" && item.itemType !== "connector"),
+        },
+        { title: "Apps", items: offerItems.filter((item) => item.itemType === "app") },
+        { title: "Connectors", items: offerItems.filter((item) => item.itemType === "connector") },
+      ].filter((group) => group.items.length > 0),
+    [offerItems],
   );
 
   const connectedProfiles = [
@@ -370,6 +471,7 @@ export default function ProfileView({ profile }: Props) {
   const avatarColor = colors.accent;
   const avatarImage = avatarOverride?.image;
   const avatarIsOutline = avatarOverride?.mode === "outline" && !avatarImage;
+  const visibleBannerIdentities = bannerVisible ? bannerIdentities.slice(0, 3) : [];
   const isOwnProfile = house.handle === ownerProfileHandle;
 
   return (
@@ -380,7 +482,7 @@ export default function ProfileView({ profile }: Props) {
             <Link
               aria-label="Profile settings"
               className="absolute right-3 top-3 z-30 inline-grid size-10 place-items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface)]/80 text-[var(--profile-text-soft)] backdrop-blur transition hover:border-[var(--profile-accent)] hover:text-[var(--profile-accent-strong)]"
-              href="/settings?tab=profile"
+              href="/settings?tab=appearance"
               title="Profile settings"
             >
               <Settings size={17} strokeWidth={1.8} aria-hidden="true" />
@@ -390,6 +492,18 @@ export default function ProfileView({ profile }: Props) {
             {cover.grid && (
               <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
             )}
+            {visibleBannerIdentities.length > 0 && (
+              <div className="absolute left-5 right-16 top-4 z-10 flex flex-wrap gap-2 sm:left-7">
+                {visibleBannerIdentities.map((identity) => (
+                  <span
+                    className="rounded-md border border-[var(--profile-accent)] bg-[var(--profile-surface)]/60 px-3 py-1.5 text-[10px] font-normal uppercase tracking-[0.13em] text-[var(--profile-accent-strong)] backdrop-blur"
+                    key={identity}
+                  >
+                    {identity}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="absolute inset-x-5 bottom-4 z-10 sm:inset-x-7 sm:pl-32">
               <h1 className="max-w-3xl text-balance text-[30px] font-normal uppercase leading-[0.95] tracking-normal text-[var(--profile-text)] sm:text-[38px]">
                 {house.name}
@@ -397,36 +511,40 @@ export default function ProfileView({ profile }: Props) {
             </div>
           </div>
 
-          <div className="relative z-10 px-5 pb-5 sm:px-7">
-            <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="relative z-10 px-5 pb-6 sm:px-7">
+            <div className="grid gap-4 sm:grid-cols-[6rem_minmax(0,1fr)] sm:gap-5">
               <div
-                className="relative z-20 grid size-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
+                className="relative z-20 -mt-12 grid size-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
                 style={{
-                  background: avatarImage ? theme.colors.surface : avatarIsOutline ? "transparent" : avatarColor,
-                  borderColor: avatarIsOutline ? avatarColor : theme.colors.surface,
-                  color: avatarIsOutline ? avatarColor : theme.colors.buttonText,
+                  background: avatarImage ? colors.surface : avatarIsOutline ? "transparent" : avatarColor,
+                  borderColor: avatarIsOutline ? avatarColor : colors.surface,
+                  color: avatarIsOutline ? avatarColor : colors.buttonText,
                 }}
                 aria-hidden="true"
               >
                 {avatarImage ? <img alt="" className="h-full w-full object-cover" src={avatarImage} /> : house.initials}
               </div>
-              <div className="min-w-0 flex-1 pt-2 sm:pt-4">
-                <p className="max-w-3xl text-[15px] leading-6 text-[var(--profile-text-soft)]">
-                  {house.shortDescription}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button className="inline-flex min-h-10 items-center rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent)] px-3.5 text-[12px] font-normal uppercase tracking-[0.08em] text-[var(--profile-button-text)] transition hover:opacity-90" type="button">
-                  Follow
-                  </button>
-                  <button className="inline-flex min-h-10 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-3.5 text-[12px] font-normal uppercase tracking-[0.08em] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" type="button">
-                  Support
-                  </button>
-                  <a className="inline-flex min-h-10 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-3.5 text-[12px] font-normal uppercase tracking-[0.08em] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" href="#contact">
-                  Contact
-                  </a>
-                  <button className="inline-flex min-h-10 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-3.5 text-[12px] font-normal uppercase tracking-[0.08em] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" onClick={() => setActiveActionTab("professional")} type="button">
-                  More
-                  </button>
+              <div className="min-w-0 pt-4 sm:pt-5">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                  <p className="max-w-3xl text-[15px] leading-6 text-[var(--profile-text-soft)]">
+                    {house.shortDescription}
+                  </p>
+                  <div className="flex shrink-0 justify-end gap-1.5 lg:self-end">
+                    <button className="inline-flex h-7 items-center rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-button-text)] transition hover:opacity-90" type="button">
+                      Follow
+                    </button>
+                    <button className="inline-flex h-7 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" type="button">
+                      Support
+                    </button>
+                    <button
+                      aria-label="More profile actions"
+                      className="inline-grid size-7 place-items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]"
+                      onClick={() => setActiveActionTab("professional")}
+                      type="button"
+                    >
+                      <MoreVertical size={13} aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -541,13 +659,13 @@ export default function ProfileView({ profile }: Props) {
           </aside>
 
           <section className="min-w-0 overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)]">
-            <div className="flex gap-1 overflow-x-auto border-b border-[var(--profile-border)] bg-[var(--profile-surface-lift)] p-2">
+            <div className="flex gap-2 overflow-x-auto border-b border-[var(--profile-border)] bg-[var(--profile-surface)] p-3">
               {profileActionTabs.map((tab) => (
                 <button
-                  className={`min-h-10 shrink-0 rounded-md px-4 text-sm font-normal transition ${
+                  className={`inline-flex h-8 shrink-0 items-center rounded-md border px-3 text-[10px] font-normal uppercase tracking-[0.12em] transition ${
                     activeActionTab === tab.key
-                      ? "bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
-                      : "text-[var(--profile-muted)] hover:bg-[var(--profile-surface-soft)] hover:text-[var(--profile-text)]"
+                      ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
+                      : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-muted)] hover:border-[var(--profile-accent)] hover:text-[var(--profile-text)]"
                   }`}
                   key={tab.key}
                   onClick={() => setActiveActionTab(tab.key)}
@@ -592,11 +710,23 @@ export default function ProfileView({ profile }: Props) {
 
               {activeActionTab === "offers" && (
                 <div id="products" className="scroll-mt-24">
-                  <ProfileTabHeader icon={<Package size={18} />} title="Products / Services / Offers" />
-                  {offerItems.length > 0 ? (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {offerItems.map((item) => (
-                        <ItemCard item={item} key={item.id} />
+                  <ProfileTabHeader
+                    icon={<Package size={18} />}
+                    title={house.handle === "building-empires" ? "Products / Offers" : "Products / Services / Offers"}
+                  />
+                  {offerGroups.length > 0 ? (
+                    <div className="grid gap-5">
+                      {offerGroups.map((group) => (
+                        <section className="grid gap-3" key={group.title}>
+                          <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
+                            {group.title}
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            {group.items.map((item) => (
+                              <ItemCard item={item} key={item.id} />
+                            ))}
+                          </div>
+                        </section>
                       ))}
                     </div>
                   ) : (

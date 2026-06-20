@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  AppWindow,
   Check,
   Copy,
   ExternalLink,
@@ -16,9 +17,12 @@ import {
   ShoppingBag,
   Star,
   Sun,
+  Plug,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
+import { getProfileTheme, profileThemes } from "@/lib/engine/themes";
+import type { ProfileThemeId } from "@/lib/engine/types";
 
 type NavItem = {
   href: string;
@@ -38,6 +42,8 @@ const primaryNav: NavItem[] = [
 ];
 
 const siteNav: NavItem[] = [
+  { href: "/#apps", label: "Apps", icon: AppWindow },
+  { href: "/#connectors", label: "Connectors", icon: Plug },
   { href: "/profiles", label: "Profiles", icon: UserRound },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
   { href: "/best-of", label: "Best of", icon: Star },
@@ -51,7 +57,7 @@ const socialLinks = [
   { name: "youtube", href: "https://www.youtube.com/@andreainpublic" },
 ] as const;
 
-const avatarColors = ["#ff6a00", "#d22f2f", "#38bdf8", "#8faa88", "#8b5cf6", "#f7f0df"];
+const avatarColors = ["#ff6a00", "#ef3b2d", "#a855f7", "#38bdf8", "#22c55e", "#ec4899", "#f5c542", "#f7f0df"];
 const defaultAvatarSettings: AvatarSettings = { color: "#ff6a00", mode: "fill" };
 const profileHandle = "andrea-dailey";
 const profilePath = `/${profileHandle}`;
@@ -123,19 +129,43 @@ function profileAvatarStorageKey(handle: string) {
   return `building-empires-profile-avatar-${handle}`;
 }
 
-function parseAvatarSettings(value: string | null): AvatarSettings {
-  if (!value) return defaultAvatarSettings;
+function profileAccentStorageKey(handle: string) {
+  return `building-empires-profile-accent-${handle}`;
+}
+
+function profileThemeStorageKey(handle: string) {
+  return `building-empires-profile-theme-${handle}`;
+}
+
+function validAccentColor(value: string | null | undefined) {
+  return value && /^#[0-9a-fA-F]{6}$/.test(value) ? value : undefined;
+}
+
+function validThemeId(value: string | null): ProfileThemeId | undefined {
+  return profileThemes.some((theme) => theme.id === value) ? (value as ProfileThemeId) : undefined;
+}
+
+function parseAvatarSettings(value: string | null, fallbackColor = defaultAvatarSettings.color): AvatarSettings {
+  if (!value) return { ...defaultAvatarSettings, color: fallbackColor };
 
   try {
     const parsed = JSON.parse(value) as Partial<AvatarSettings>;
     const mode = parsed.mode === "outline" ? "outline" : "fill";
-    const color = typeof parsed.color === "string" ? parsed.color : defaultAvatarSettings.color;
+    const color = validAccentColor(parsed.color) ?? fallbackColor;
     const image = typeof parsed.image === "string" && parsed.image.startsWith("data:image/") ? parsed.image : undefined;
 
     return { color, image, mode };
   } catch {
-    return defaultAvatarSettings;
+    return { ...defaultAvatarSettings, color: fallbackColor };
   }
+}
+
+function currentProfileAccent() {
+  const storedAccent = validAccentColor(window.localStorage.getItem(profileAccentStorageKey(profileHandle)));
+  if (storedAccent) return storedAccent;
+
+  const storedTheme = validThemeId(window.localStorage.getItem(profileThemeStorageKey(profileHandle)));
+  return getProfileTheme(storedTheme).colors.accent;
 }
 
 function AvatarPreview({
@@ -214,22 +244,41 @@ export default function BuildingEmpiresShell({
 
   useEffect(() => {
     function syncStoredAvatar() {
-      setAvatar(parseAvatarSettings(window.localStorage.getItem(profileAvatarStorageKey(profileHandle))));
+      const color = currentProfileAccent();
+      setAvatar({ ...parseAvatarSettings(window.localStorage.getItem(profileAvatarStorageKey(profileHandle)), color), color });
     }
 
     function onAvatarChange(event: Event) {
       const detail = (event as CustomEvent<{ avatar?: AvatarSettings; handle?: string }>).detail;
       if (detail?.handle !== profileHandle || !detail.avatar) return;
-      setAvatar(detail.avatar);
+      setAvatar({ ...detail.avatar, color: currentProfileAccent() });
+    }
+
+    function onProfileColorChange(event: Event) {
+      const detail = (event as CustomEvent<{ accent?: string; handle?: string }>).detail;
+      if (detail?.handle !== profileHandle) return;
+
+      syncStoredAvatar();
+    }
+
+    function onProfileThemeChange(event: Event) {
+      const detail = (event as CustomEvent<{ handle?: string; themeId?: ProfileThemeId }>).detail;
+      if (detail?.handle !== profileHandle) return;
+
+      syncStoredAvatar();
     }
 
     syncStoredAvatar();
     window.addEventListener("storage", syncStoredAvatar);
     window.addEventListener("buildingempires:profile-avatar", onAvatarChange);
+    window.addEventListener("buildingempires:profile-accent", onProfileColorChange);
+    window.addEventListener("buildingempires:profile-theme", onProfileThemeChange);
 
     return () => {
       window.removeEventListener("storage", syncStoredAvatar);
       window.removeEventListener("buildingempires:profile-avatar", onAvatarChange);
+      window.removeEventListener("buildingempires:profile-accent", onProfileColorChange);
+      window.removeEventListener("buildingempires:profile-theme", onProfileThemeChange);
     };
   }, []);
 
@@ -261,12 +310,21 @@ export default function BuildingEmpiresShell({
     window.localStorage.setItem("building-empires-theme", nextTheme);
   }
 
-  function saveAvatar(nextAvatar: AvatarSettings) {
+  function saveAvatar(nextAvatar: AvatarSettings, syncProfileColor = false) {
     setAvatar(nextAvatar);
     window.localStorage.setItem(profileAvatarStorageKey(profileHandle), JSON.stringify(nextAvatar));
     window.dispatchEvent(
       new CustomEvent("buildingempires:profile-avatar", {
         detail: { avatar: nextAvatar, handle: profileHandle },
+      }),
+    );
+
+    if (!syncProfileColor) return;
+
+    window.localStorage.setItem(profileAccentStorageKey(profileHandle), nextAvatar.color);
+    window.dispatchEvent(
+      new CustomEvent("buildingempires:profile-accent", {
+        detail: { accent: nextAvatar.color, handle: profileHandle },
       }),
     );
   }
@@ -303,7 +361,7 @@ export default function BuildingEmpiresShell({
 
   function openProfileSettings() {
     setAccountOpen(false);
-    window.dispatchEvent(new CustomEvent("buildingempires:settings-tab", { detail: { tab: "profile" } }));
+    window.dispatchEvent(new CustomEvent("buildingempires:settings-tab", { detail: { tab: "appearance" } }));
   }
 
   return (
@@ -428,7 +486,7 @@ export default function BuildingEmpiresShell({
                           aria-label={`Use ${color}`}
                           className={avatar.color === color ? "is-active" : undefined}
                           key={color}
-                          onClick={() => saveAvatar({ ...avatar, color })}
+                          onClick={() => saveAvatar({ ...avatar, color }, true)}
                           style={{ backgroundColor: color }}
                           type="button"
                         />
@@ -454,7 +512,7 @@ export default function BuildingEmpiresShell({
                         <span>View profile</span>
                       </span>
                     </Link>
-                    <Link className="site-settings-row" href="/settings?tab=profile" onClick={openProfileSettings} role="menuitem">
+                    <Link className="site-settings-row" href="/settings?tab=appearance" onClick={openProfileSettings} role="menuitem">
                       <span className="site-settings-row-main">
                         <Settings size={16} aria-hidden="true" />
                         <span>Profile settings</span>
