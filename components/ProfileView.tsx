@@ -319,26 +319,27 @@ export default function ProfileView({ profile }: Props) {
           <div className="relative z-10 px-5 pb-6 sm:px-7">
             <div className="-mt-14 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
               <div className="min-w-0">
-                <div
-                  className="relative z-20 mb-5 grid size-24 place-items-center overflow-hidden rounded-full border-4 text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
-                  style={{
-                    background: avatarImage ? theme.colors.surface : avatarIsOutline ? "transparent" : avatarColor,
-                    borderColor: avatarIsOutline ? avatarColor : theme.colors.surface,
-                    color: avatarIsOutline ? avatarColor : theme.colors.buttonText,
-                  }}
-                  aria-hidden="true"
-                >
-                  {avatarImage ? <img alt="" className="h-full w-full object-cover" src={avatarImage} /> : house.initials}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                  <div
+                    className="relative z-20 grid size-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
+                    style={{
+                      background: avatarImage ? theme.colors.surface : avatarIsOutline ? "transparent" : avatarColor,
+                      borderColor: avatarIsOutline ? avatarColor : theme.colors.surface,
+                      color: avatarIsOutline ? avatarColor : theme.colors.buttonText,
+                    }}
+                    aria-hidden="true"
+                  >
+                    {avatarImage ? <img alt="" className="h-full w-full object-cover" src={avatarImage} /> : house.initials}
+                  </div>
+                  <div className="min-w-0 pb-1">
+                    <h1 className="max-w-5xl text-[38px] font-normal uppercase leading-[0.95] tracking-normal text-[var(--profile-text)] sm:text-5xl lg:text-6xl">
+                      {house.name}
+                    </h1>
+                    <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--profile-text-soft)] sm:text-lg">
+                      {house.shortDescription}
+                    </p>
+                  </div>
                 </div>
-                <div className="mb-3 text-sm font-normal text-[var(--profile-muted)]">
-                  @{house.handle}
-                </div>
-                <h1 className="max-w-5xl text-[42px] font-normal uppercase leading-[0.95] tracking-normal text-[var(--profile-text)] sm:text-6xl lg:text-7xl">
-                  {house.name}
-                </h1>
-                <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--profile-text-soft)] sm:text-lg">
-                  {house.shortDescription}
-                </p>
               </div>
 
               <div className="flex flex-wrap gap-2 lg:justify-end">
