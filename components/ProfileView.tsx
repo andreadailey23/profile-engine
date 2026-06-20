@@ -233,10 +233,10 @@ export default function ProfileView({ profile }: Props) {
   return (
     <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(theme)}>
       <section className="mx-auto max-w-7xl px-5 py-4 sm:px-8 lg:px-10">
-        <article className="overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] shadow-[0_22px_90px_var(--profile-shadow)]">
-          <div className="relative min-h-[230px] border-b border-[var(--profile-border)]" style={{ background: coverBackground(house.primaryColor, theme) }}>
-            <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
-            <div className="absolute left-5 top-5 flex flex-wrap gap-2 sm:left-7">
+        <article className="relative isolate overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] shadow-[0_22px_90px_var(--profile-shadow)]">
+          <div className="relative z-0 min-h-[230px] border-b border-[var(--profile-border)]" style={{ background: coverBackground(house.primaryColor, theme) }}>
+            <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
+            <div className="absolute left-5 top-5 z-10 flex flex-wrap gap-2 sm:left-7">
               <span className={`rounded-full border px-3 py-1 text-[10px] font-normal uppercase tracking-[0.14em] ${statusStyle(house.status)}`}>
                 {statusLabels[house.status]}
               </span>
@@ -246,11 +246,11 @@ export default function ProfileView({ profile }: Props) {
             </div>
           </div>
 
-          <div className="px-5 pb-6 sm:px-7">
+          <div className="relative z-10 px-5 pb-6 sm:px-7">
             <div className="-mt-14 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
               <div className="min-w-0">
                 <div
-                  className="mb-5 grid size-24 place-items-center rounded-full border-4 border-[var(--profile-surface)] text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
+                  className="relative z-20 mb-5 grid size-24 place-items-center rounded-full border-4 border-[var(--profile-surface)] text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
                   style={{
                     background: house.primaryColor,
                     color: theme.colors.buttonText,
