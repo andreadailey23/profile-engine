@@ -529,7 +529,7 @@ export default function ProfileView({ profile }: Props) {
                 ))}
               </div>
             )}
-            <div className="absolute inset-x-5 bottom-4 z-10 sm:inset-x-7 sm:pl-32">
+            <div className="absolute inset-x-5 bottom-4 z-10 sm:inset-x-7 sm:pl-[8.75rem]">
               <h1 className="max-w-3xl text-balance text-[30px] font-normal uppercase leading-[0.95] tracking-normal text-[var(--profile-text)] sm:text-[38px]">
                 {house.name}
               </h1>
@@ -537,9 +537,9 @@ export default function ProfileView({ profile }: Props) {
           </div>
 
           <div className="relative z-10 px-5 pb-6 sm:px-7">
-            <div className="grid gap-4 sm:grid-cols-[6rem_minmax(0,1fr)] sm:gap-5">
+            <div className="grid gap-4 sm:grid-cols-[6.75rem_minmax(0,1fr)] sm:gap-5">
               <div
-                className="relative z-20 -mt-12 grid size-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 text-[48px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
+                className="relative z-20 -mt-[54px] grid size-[108px] shrink-0 place-items-center overflow-hidden rounded-full border-4 text-[52px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
                 style={{
                   background: avatarImage ? colors.surface : avatarIsOutline ? "transparent" : avatarColor,
                   borderColor: avatarIsOutline ? avatarColor : colors.surface,
