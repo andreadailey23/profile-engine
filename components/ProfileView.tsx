@@ -129,8 +129,27 @@ function profileCoverStorageKey(handle: string) {
   return `building-empires-profile-cover-${handle}`;
 }
 
+function profileAccentStorageKey(handle: string) {
+  return `building-empires-profile-accent-${handle}`;
+}
+
 function validThemeId(value: string | null): ProfileThemeId | undefined {
   return profileThemes.some((theme) => theme.id === value) ? (value as ProfileThemeId) : undefined;
+}
+
+function validAccentColor(value: string | null | undefined) {
+  return value && /^#[0-9a-fA-F]{6}$/.test(value) ? value : undefined;
+}
+
+function profileThemeColors(theme: ReturnType<typeof getProfileTheme>, accentOverride: string | undefined) {
+  if (!accentOverride) return theme.colors;
+
+  return {
+    ...theme.colors,
+    accent: accentOverride,
+    accentStrong: accentOverride,
+    accentSoft: `${accentOverride}24`,
+  };
 }
 
 type AvatarSettings = {
@@ -138,6 +157,8 @@ type AvatarSettings = {
   image?: string;
   mode: "fill" | "outline";
 };
+
+type ProfileThemeColors = ReturnType<typeof getProfileTheme>["colors"];
 
 function parseAvatarSettings(value: string | null): AvatarSettings | undefined {
   if (!value) return undefined;
@@ -154,23 +175,23 @@ function parseAvatarSettings(value: string | null): AvatarSettings | undefined {
   }
 }
 
-function profileThemeVars(theme: ReturnType<typeof getProfileTheme>) {
+function profileThemeVars(colors: ProfileThemeColors) {
   return {
-    "--profile-bg": theme.colors.canvas,
-    "--profile-surface": theme.colors.surface,
-    "--profile-surface-soft": theme.colors.surfaceSoft,
-    "--profile-surface-lift": theme.colors.surfaceLift,
-    "--profile-border": theme.colors.border,
-    "--profile-border-strong": theme.colors.borderStrong,
-    "--profile-text": theme.colors.text,
-    "--profile-text-soft": theme.colors.textSoft,
-    "--profile-muted": theme.colors.muted,
-    "--profile-accent": theme.colors.accent,
-    "--profile-accent-strong": theme.colors.accentStrong,
-    "--profile-accent-soft": theme.colors.accentSoft,
-    "--profile-button-text": theme.colors.buttonText,
-    "--profile-shadow": theme.colors.shadow,
-    "--profile-grid": theme.colors.grid,
+    "--profile-bg": colors.canvas,
+    "--profile-surface": colors.surface,
+    "--profile-surface-soft": colors.surfaceSoft,
+    "--profile-surface-lift": colors.surfaceLift,
+    "--profile-border": colors.border,
+    "--profile-border-strong": colors.borderStrong,
+    "--profile-text": colors.text,
+    "--profile-text-soft": colors.textSoft,
+    "--profile-muted": colors.muted,
+    "--profile-accent": colors.accent,
+    "--profile-accent-strong": colors.accentStrong,
+    "--profile-accent-soft": colors.accentSoft,
+    "--profile-button-text": colors.buttonText,
+    "--profile-shadow": colors.shadow,
+    "--profile-grid": colors.grid,
   } as CSSProperties;
 }
 
@@ -204,11 +225,13 @@ export default function ProfileView({ profile }: Props) {
     updates,
   } = profile;
   const [activeActionTab, setActiveActionTab] = useState<ProfileActionTab>("connect");
+  const [accentOverride, setAccentOverride] = useState<string | undefined>();
   const [avatarOverride, setAvatarOverride] = useState<AvatarSettings | undefined>();
   const [coverOverride, setCoverOverride] = useState<ProfileCoverId | undefined>();
   const [libraryFilter, setLibraryFilter] = useState<ProfileLibraryItemType | "all">("all");
   const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
   const theme = getProfileTheme(themeOverride ?? house.themeId);
+  const colors = profileThemeColors(theme, accentOverride);
   const cover = getProfileCover(coverOverride);
 
   useEffect(() => {
@@ -229,6 +252,27 @@ export default function ProfileView({ profile }: Props) {
     return () => {
       window.removeEventListener("storage", syncStoredTheme);
       window.removeEventListener("buildingempires:profile-theme", onThemeChange);
+    };
+  }, [house.handle]);
+
+  useEffect(() => {
+    function syncStoredAccent() {
+      setAccentOverride(validAccentColor(window.localStorage.getItem(profileAccentStorageKey(house.handle))));
+    }
+
+    function onAccentChange(event: Event) {
+      const detail = (event as CustomEvent<{ accent?: string; handle?: string }>).detail;
+      if (detail?.handle !== house.handle) return;
+      setAccentOverride(validAccentColor(detail.accent));
+    }
+
+    syncStoredAccent();
+    window.addEventListener("storage", syncStoredAccent);
+    window.addEventListener("buildingempires:profile-accent", onAccentChange);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredAccent);
+      window.removeEventListener("buildingempires:profile-accent", onAccentChange);
     };
   }, [house.handle]);
 
@@ -323,13 +367,13 @@ export default function ProfileView({ profile }: Props) {
     }))
     .filter((group) => group.items.length > 0);
   const libraryTitle = house.handle === "streamo" ? "My Games" : "Library";
-  const avatarColor = theme.colors.accent;
+  const avatarColor = colors.accent;
   const avatarImage = avatarOverride?.image;
   const avatarIsOutline = avatarOverride?.mode === "outline" && !avatarImage;
   const isOwnProfile = house.handle === ownerProfileHandle;
 
   return (
-    <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(theme)}>
+    <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(colors)}>
       <section className="mx-auto max-w-7xl px-5 py-4 sm:px-8 lg:px-10">
         <article className="relative isolate overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] shadow-[0_22px_90px_var(--profile-shadow)]">
           {isOwnProfile && (
@@ -342,7 +386,7 @@ export default function ProfileView({ profile }: Props) {
               <Settings size={17} strokeWidth={1.8} aria-hidden="true" />
             </Link>
           )}
-          <div className="relative z-0 min-h-[150px] border-b border-[var(--profile-border)] sm:min-h-[168px]" style={{ background: profileCoverBackground(theme.colors, cover.id) }}>
+          <div className="relative z-0 min-h-[150px] border-b border-[var(--profile-border)] sm:min-h-[168px]" style={{ background: profileCoverBackground(colors, cover.id) }}>
             {cover.grid && (
               <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
             )}

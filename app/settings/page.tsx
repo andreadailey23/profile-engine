@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   BookOpen,
+  Briefcase,
   CalendarDays,
   Check,
   Copy,
@@ -25,16 +26,18 @@ import {
 } from "@/lib/engine/covers";
 import type { ProfileThemeId } from "@/lib/engine/types";
 
-type SettingsTab = "profile" | "library" | "links" | "schedule" | "appearance" | "sharing" | "account";
+type SettingsTab = "profile" | "professional" | "library" | "links" | "schedule" | "appearance" | "sharing" | "account";
 
 const profilePath = "/andrea-dailey";
 const profileHandle = "andrea-dailey";
 const productionOrigin = "https://buildingempires.co";
 const profileThemeStorageKey = `building-empires-profile-theme-${profileHandle}`;
 const profileCoverStorageKey = `building-empires-profile-cover-${profileHandle}`;
+const profileAccentStorageKey = `building-empires-profile-accent-${profileHandle}`;
 
 const tabs: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
   { key: "profile", label: "Profile", icon: UserRound },
+  { key: "professional", label: "Professional", icon: Briefcase },
   { key: "library", label: "Library", icon: BookOpen },
   { key: "links", label: "Links", icon: Link2 },
   { key: "schedule", label: "Schedule", icon: CalendarDays },
@@ -45,6 +48,11 @@ const tabs: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
 
 const validTabs = new Set<SettingsTab>(tabs.map((tab) => tab.key));
 const validThemeIds = new Set<ProfileThemeId>(profileThemes.map((theme) => theme.id));
+const accentOptions = ["#ff6a00", "#ef3b2d", "#a855f7", "#38bdf8", "#22c55e", "#ec4899", "#f5c542", "#f7f0df"];
+
+function validAccentColor(value: string | null | undefined) {
+  return value && /^#[0-9a-fA-F]{6}$/.test(value) ? value : undefined;
+}
 
 async function writeClipboardText(text: string) {
   try {
@@ -88,6 +96,7 @@ function settingsTabFromUrl() {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [copyLabel, setCopyLabel] = useState("Copy");
+  const [selectedAccent, setSelectedAccent] = useState<string | undefined>();
   const [selectedCover, setSelectedCover] = useState<ProfileCoverId>("grid-glow");
   const [selectedTheme, setSelectedTheme] = useState<ProfileThemeId>("midnight");
 
@@ -125,6 +134,9 @@ export default function SettingsPage() {
 
     const storedCover = validProfileCoverId(window.localStorage.getItem(profileCoverStorageKey));
     if (storedCover) window.requestAnimationFrame(() => setSelectedCover(storedCover));
+
+    const storedAccent = validAccentColor(window.localStorage.getItem(profileAccentStorageKey));
+    if (storedAccent) window.requestAnimationFrame(() => setSelectedAccent(storedAccent));
   }, []);
 
   function selectTab(tab: SettingsTab) {
@@ -168,6 +180,22 @@ export default function SettingsPage() {
     );
   }
 
+  function selectAccent(accent: string | undefined) {
+    setSelectedAccent(accent);
+
+    if (accent) {
+      window.localStorage.setItem(profileAccentStorageKey, accent);
+    } else {
+      window.localStorage.removeItem(profileAccentStorageKey);
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("buildingempires:profile-accent", {
+        detail: { handle: profileHandle, accent },
+      }),
+    );
+  }
+
   return (
     <main className="min-h-full bg-[#050505] text-[#f7f0df]">
       <div className="flex min-h-[calc(100vh-var(--topbar-h)-var(--footer-h))]">
@@ -185,13 +213,16 @@ export default function SettingsPage() {
           <section className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-10">
             <SettingsReturnBar />
             {activeTab === "profile" && <ProfileSettings />}
+            {activeTab === "professional" && <ProfessionalSettings />}
             {activeTab === "library" && <LibrarySettings />}
             {activeTab === "links" && <LinksSettings />}
             {activeTab === "schedule" && <ScheduleSettings />}
             {activeTab === "appearance" && (
               <AppearanceSettings
+                selectedAccent={selectedAccent}
                 selectedCover={selectedCover}
                 selectedTheme={selectedTheme}
+                onSelectAccent={selectAccent}
                 onSelectCover={selectCover}
                 onSelectTheme={selectTheme}
               />
@@ -279,6 +310,22 @@ function ProfileSettings() {
         <Field label="Highlights" value="Products shipped: 10+, Books published: 2, Systems built: 6" />
         <Field label="Views" value="Default, Marketplace, Professional" />
         <Field label="Avatar" value="Photo upload, initials fill or outline, and color" />
+      </SettingsPanel>
+    </>
+  );
+}
+
+function ProfessionalSettings() {
+  return (
+    <>
+      <SettingsHeader eyebrow="professional" title="Work profile" />
+      <SettingsPanel>
+        <Field label="Headline" value="Builder, author, product operator, and systems maker" />
+        <Field label="Work summary" value="What you do, who you help, and what kind of work you want to be known for." />
+        <Field label="Proof" value="Books published, products shipped, systems built, clients helped, press, metrics." />
+        <Field label="Projects" value="Featured work, current builds, case studies, portfolio links." />
+        <Field label="Offers / services" value="Consulting, products, booking links, paid offers, marketplace items." />
+        <Field label="Contact" value="Email, website, booking link, preferred contact path." />
       </SettingsPanel>
     </>
   );
@@ -413,43 +460,47 @@ function ScheduleSettings() {
 }
 
 function AppearanceSettings({
+  selectedAccent,
   selectedCover,
   selectedTheme,
+  onSelectAccent,
   onSelectCover,
   onSelectTheme,
 }: {
+  selectedAccent: string | undefined;
   selectedCover: ProfileCoverId;
   selectedTheme: ProfileThemeId;
+  onSelectAccent: (accent: string | undefined) => void;
   onSelectCover: (coverId: ProfileCoverId) => void;
   onSelectTheme: (themeId: ProfileThemeId) => void;
 }) {
   const activeTheme = getProfileTheme(selectedTheme);
+  const activeAccent = selectedAccent ?? activeTheme.colors.accent;
+  const swatches = Array.from(new Set([activeTheme.colors.accent, ...accentOptions]));
 
   return (
     <>
-      <SettingsHeader eyebrow="appearance" title="Themes" />
+      <SettingsHeader eyebrow="appearance" title="Style" />
       <section className="grid gap-4">
         <div className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
           <div className="grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center">
             <div>
               <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
-                active
+                base
               </div>
               <div className="mt-1 text-xl font-normal uppercase leading-none text-white">
                 {activeTheme.name}
               </div>
             </div>
             <div className="grid grid-cols-5 overflow-hidden rounded-md border border-white/10">
-              {Object.entries(activeTheme.colors)
-                .filter(([key]) => ["canvas", "surface", "text", "accent", "accentStrong"].includes(key))
-                .map(([key, color]) => (
-                  <span
-                    aria-label={key}
-                    className="h-11"
-                    key={key}
-                    style={{ background: color }}
-                  />
-                ))}
+              {["canvas", "surface", "text", "muted", "border"].map((key) => (
+                <span
+                  aria-label={key}
+                  className="h-11"
+                  key={key}
+                  style={{ background: activeTheme.colors[key as keyof typeof activeTheme.colors] }}
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -458,10 +509,52 @@ function AppearanceSettings({
           <div className="mb-3">
             <div>
               <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
-                cover background
+                accent color
               </div>
               <h2 className="mt-1 text-xl font-normal uppercase leading-none text-white">
-                Background
+                Color
+              </h2>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`inline-flex min-h-10 items-center rounded-md border px-3 text-xs font-normal uppercase tracking-[0.1em] transition ${
+                !selectedAccent
+                  ? "border-[#ff6a00] bg-[#ff6a00]/10 text-[#ffb16b]"
+                  : "border-white/10 bg-white/[0.025] text-[#8f8577] hover:border-white/25 hover:text-[#f7f0df]"
+              }`}
+              onClick={() => onSelectAccent(undefined)}
+              type="button"
+            >
+              Default
+            </button>
+            {swatches.map((color) => {
+              const active = activeAccent.toLowerCase() === color.toLowerCase();
+
+              return (
+                <button
+                  aria-label={`Use ${color}`}
+                  className={`size-10 rounded-md border transition ${
+                    active ? "border-white shadow-[0_0_0_2px_#ff6a00]" : "border-white/15 hover:border-white/45"
+                  }`}
+                  key={color}
+                  onClick={() => onSelectAccent(color)}
+                  style={{ background: color }}
+                  type="button"
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
+          <div className="mb-3">
+            <div>
+              <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
+                pattern
+              </div>
+              <h2 className="mt-1 text-xl font-normal uppercase leading-none text-white">
+                Pattern
               </h2>
             </div>
           </div>
@@ -482,7 +575,16 @@ function AppearanceSettings({
                 >
                   <div
                     className="relative mb-3 h-20 overflow-hidden rounded-md border border-white/10"
-                    style={{ background: profileCoverBackground(activeTheme.colors, cover.id) }}
+                    style={{
+                      background: profileCoverBackground(
+                        {
+                          ...activeTheme.colors,
+                          accent: activeAccent,
+                          accentSoft: `${activeAccent}24`,
+                        },
+                        cover.id,
+                      ),
+                    }}
                   >
                     {cover.grid && (
                       <div className="pointer-events-none absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(255,255,255,.16)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.16)_1px,transparent_1px)] [background-size:22px_22px]" />
@@ -499,6 +601,9 @@ function AppearanceSettings({
           </div>
         </div>
 
+        <div className="mb-[-4px] mt-1 text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
+          Base theme
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
           {profileThemes.map((theme) => {
             const active = selectedTheme === theme.id;
