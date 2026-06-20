@@ -201,11 +201,7 @@ export default function BuildingEmpiresShell({
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [accountOpen, setAccountOpen] = useState(false);
-  const [avatar, setAvatar] = useState<AvatarSettings>(() =>
-    typeof window === "undefined"
-      ? defaultAvatarSettings
-      : parseAvatarSettings(window.localStorage.getItem(profileAvatarStorageKey(profileHandle))),
-  );
+  const [avatar, setAvatar] = useState<AvatarSettings>(defaultAvatarSettings);
   const [copyMessage, setCopyMessage] = useState("Copy profile link");
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -303,6 +299,11 @@ export default function BuildingEmpiresShell({
     } catch {
       setCopyMessage(url);
     }
+  }
+
+  function openProfileSettings() {
+    setAccountOpen(false);
+    window.dispatchEvent(new CustomEvent("buildingempires:settings-tab", { detail: { tab: "profile" } }));
   }
 
   return (
@@ -453,7 +454,7 @@ export default function BuildingEmpiresShell({
                         <span>View profile</span>
                       </span>
                     </Link>
-                    <Link className="site-settings-row" href={`${profilePath}#basics`} onClick={() => setAccountOpen(false)} role="menuitem">
+                    <Link className="site-settings-row" href="/settings?tab=profile" onClick={openProfileSettings} role="menuitem">
                       <span className="site-settings-row-main">
                         <Settings size={16} aria-hidden="true" />
                         <span>Profile settings</span>

@@ -73,15 +73,40 @@ function currentProfileUrl() {
   return `${localOrigin ? productionOrigin : window.location.origin}${profilePath}`;
 }
 
+function settingsTabFromUrl() {
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  return tab && validTabs.has(tab as SettingsTab) ? (tab as SettingsTab) : "profile";
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [copyLabel, setCopyLabel] = useState("Copy");
   const [selectedTheme, setSelectedTheme] = useState<ProfileThemeId>("midnight");
 
   useEffect(() => {
-    const tab = new URLSearchParams(window.location.search).get("tab");
-    if (!tab || !validTabs.has(tab as SettingsTab)) return;
-    window.requestAnimationFrame(() => setActiveTab(tab as SettingsTab));
+    function syncTabFromUrl() {
+      setActiveTab(settingsTabFromUrl());
+    }
+
+    function onSettingsTab(event: Event) {
+      const tab = (event as CustomEvent<{ tab?: string }>).detail?.tab;
+
+      if (tab && validTabs.has(tab as SettingsTab)) {
+        setActiveTab(tab as SettingsTab);
+        return;
+      }
+
+      syncTabFromUrl();
+    }
+
+    window.requestAnimationFrame(syncTabFromUrl);
+    window.addEventListener("popstate", syncTabFromUrl);
+    window.addEventListener("buildingempires:settings-tab", onSettingsTab);
+
+    return () => {
+      window.removeEventListener("popstate", syncTabFromUrl);
+      window.removeEventListener("buildingempires:settings-tab", onSettingsTab);
+    };
   }, []);
 
   useEffect(() => {

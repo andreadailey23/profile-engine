@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
   Activity,
   ArrowUpRight,
-  BookOpen,
   CalendarDays,
   Grid3X3,
   Link2,
@@ -21,7 +20,6 @@ import type {
   ProfileLibraryItem,
   ProfileLibraryItemStatus,
   ProfileLibraryItemType,
-  ProfileViewType,
   ProfileThemeId,
   RoomType,
   ScheduleItem,
@@ -98,12 +96,6 @@ function workSectionTitle(name: string, type: HouseType) {
   return "Work";
 }
 
-function productsSectionTitle(type: HouseType) {
-  if (type === "book" || type === "collection" || type === "offer") return "Buy";
-  if (type === "product" || type === "app") return "Use / buy";
-  return "Products";
-}
-
 function profileThemeStorageKey(handle: string) {
   return `building-empires-profile-theme-${handle}`;
 }
@@ -157,11 +149,9 @@ function profileThemeVars(theme: ReturnType<typeof getProfileTheme>) {
   } as CSSProperties;
 }
 
-function coverBackground(color: string, theme: ReturnType<typeof getProfileTheme>) {
-  const accent = color === "#050505" ? "#ff6a00" : color;
-
+function coverBackground(theme: ReturnType<typeof getProfileTheme>) {
   return `
-    linear-gradient(118deg, ${accent}42 0%, ${theme.colors.accentSoft} 34%, transparent 64%),
+    linear-gradient(118deg, ${theme.colors.accent}42 0%, ${theme.colors.accentSoft} 34%, transparent 64%),
     linear-gradient(180deg, ${theme.colors.surfaceLift} 0%, ${theme.colors.surface} 100%)
   `;
 }
@@ -170,27 +160,15 @@ type Props = {
   profile: NonNullable<ProfileRecord>;
 };
 
-const viewLabels: Record<ProfileViewType, string> = {
-  default: "Profile",
-  social: "Social",
-  marketplace: "Marketplace",
-  professional: "Professional",
-  content: "Content",
-  schedule: "Schedule",
-  support: "Support",
-  updates: "Updates",
-};
+type ProfileActionTab = "connect" | "offers" | "professional";
 
-const viewRooms: Record<ProfileViewType, RoomType[]> = {
-  default: ["identity", "positioning", "work", "products", "library", "links", "activity"],
-  social: ["posts", "activity", "schedule", "community", "library", "links"],
-  marketplace: ["products", "offers", "shop", "books", "support", "links"],
-  professional: ["positioning", "proof", "work", "reports", "contact"],
-  content: ["posts", "media", "channels", "books", "library", "activity", "links"],
-  schedule: ["schedule", "contact", "links"],
-  support: ["support", "offers", "products", "contact", "links"],
-  updates: ["activity", "updates", "posts"],
-};
+const profileActionTabs: { key: ProfileActionTab; label: string }[] = [
+  { key: "connect", label: "Connect" },
+  { key: "offers", label: "Offers" },
+  { key: "professional", label: "Professional" },
+];
+
+const professionalRooms: RoomType[] = ["positioning", "proof", "work", "reports", "contact"];
 
 export default function ProfileView({ profile }: Props) {
   const {
@@ -207,15 +185,7 @@ export default function ProfileView({ profile }: Props) {
     schedule,
     updates,
   } = profile;
-  const selectedViews = useMemo<ProfileViewType[]>(
-    () => (house.selectedViews && house.selectedViews.length > 0 ? house.selectedViews.slice(0, 3) : ["default"]),
-    [house.selectedViews],
-  );
-  const initialView =
-    house.defaultView && selectedViews.includes(house.defaultView)
-      ? house.defaultView
-      : selectedViews[0] ?? "default";
-  const [activeView, setActiveView] = useState<ProfileViewType>(initialView);
+  const [activeActionTab, setActiveActionTab] = useState<ProfileActionTab>("connect");
   const [avatarOverride, setAvatarOverride] = useState<AvatarSettings | undefined>();
   const [libraryFilter, setLibraryFilter] = useState<ProfileLibraryItemType | "all">("all");
   const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
@@ -263,27 +233,32 @@ export default function ProfileView({ profile }: Props) {
     };
   }, [house.handle]);
 
-  const activeRooms = viewRooms[activeView] ?? viewRooms.default;
-  const roomModules = useMemo(
-    () => modules.filter((module) => activeRooms.includes(module.room)),
-    [activeRooms, modules],
+  const professionalModules = useMemo(
+    () => modules.filter((module) => professionalRooms.includes(module.room)),
+    [modules],
   );
 
   const workItems = useMemo(
     () => items.filter((item) => itemDisplayGroup(item) === "work"),
     [items],
   );
-  const productItems = useMemo(
-    () => items.filter((item) => itemDisplayGroup(item) === "product"),
+  const featuredContentItems = useMemo(
+    () =>
+      items
+        .filter((item) => Boolean(item.url) && (item.displayGroup === "pick" || item.itemType === "media"))
+        .slice(0, 4),
     [items],
   );
-  const showWorkItems = ["default", "professional", "content", "social"].includes(activeView);
-  const showProductItems = ["default", "marketplace", "support"].includes(activeView);
-  const visibleWorkItems = showWorkItems ? workItems : [];
-  const visibleProductItems = showProductItems ? productItems : [];
+  const offerItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          itemDisplayGroup(item) === "product" ||
+          ["book", "collection", "course", "offer", "service", "store", "tool"].includes(item.itemType),
+      ),
+    [items],
+  );
 
-  const visibleSchedule = ["default", "social", "schedule"].includes(activeView) ? schedule : [];
-  const visibleUpdates = ["default", "social", "content", "updates", "professional"].includes(activeView) ? updates : [];
   const connectedProfiles = [
     ...parentHouses.map((item) => ({ label: "part of", house: item })),
     ...ownerHouses.map((item) => ({ label: "built by", house: item })),
@@ -293,15 +268,7 @@ export default function ProfileView({ profile }: Props) {
   ];
   const socialLinks = links.filter((link) => link.type === "social");
   const coreLinks = links.filter((link) => link.type !== "social");
-  const rightRailOffers = items
-    .filter(
-      (item) =>
-        itemDisplayGroup(item) === "product" ||
-        ["book", "collection", "course", "offer", "service", "store", "tool"].includes(item.itemType),
-    )
-    .slice(0, 4);
-  const showLinks = activeRooms.includes("links");
-  const showLibrary = activeRooms.includes("library") && libraryItems.length > 0;
+  const showLibrary = libraryItems.length > 0;
   const libraryTypes = Array.from(new Set(libraryItems.map((item) => item.type)));
   const visibleLibraryItems =
     libraryFilter === "all" ? libraryItems : libraryItems.filter((item) => item.type === libraryFilter);
@@ -314,7 +281,7 @@ export default function ProfileView({ profile }: Props) {
     }))
     .filter((group) => group.items.length > 0);
   const libraryTitle = house.handle === "streamo" ? "My Games" : "Library";
-  const avatarColor = avatarOverride?.color ?? house.primaryColor;
+  const avatarColor = theme.colors.accent;
   const avatarImage = avatarOverride?.image;
   const avatarIsOutline = avatarOverride?.mode === "outline" && !avatarImage;
 
@@ -322,7 +289,7 @@ export default function ProfileView({ profile }: Props) {
     <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(theme)}>
       <section className="mx-auto max-w-7xl px-5 py-4 sm:px-8 lg:px-10">
         <article className="relative isolate overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] shadow-[0_22px_90px_var(--profile-shadow)]">
-          <div className="relative z-0 min-h-[170px] border-b border-[var(--profile-border)] sm:min-h-[185px]" style={{ background: coverBackground(house.primaryColor, theme) }}>
+          <div className="relative z-0 min-h-[170px] border-b border-[var(--profile-border)] sm:min-h-[185px]" style={{ background: coverBackground(theme) }}>
             <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
           </div>
 
@@ -362,17 +329,17 @@ export default function ProfileView({ profile }: Props) {
                 <a className="inline-flex min-h-11 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-4 text-sm font-normal text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" href="#contact">
                   Contact
                 </a>
-                <a className="inline-flex min-h-11 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-4 text-sm font-normal text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" href="#links">
+                <button className="inline-flex min-h-11 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-4 text-sm font-normal text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" onClick={() => setActiveActionTab("professional")} type="button">
                   More
-                </a>
+                </button>
               </div>
             </div>
           </div>
         </article>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)_300px]">
+        <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
           <aside className="grid content-start gap-4">
-            <section className="rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-4 lg:sticky lg:top-[72px]">
+            <section className="grid gap-4 rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-4 lg:sticky lg:top-[72px]">
               <ProfileSpineBlock title="About">
                 <p className="text-sm leading-6 text-[var(--profile-text-soft)]">{house.description}</p>
               </ProfileSpineBlock>
@@ -410,274 +377,251 @@ export default function ProfileView({ profile }: Props) {
                 </ProfileSpineBlock>
               )}
 
-              <div>
-                <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[var(--profile-muted)]">
-                  <Grid3X3 size={14} aria-hidden="true" />
-                  Navigation
-                </div>
-                <div className="grid gap-1">
-                  {selectedViews.map((view) => (
-                    <ViewButton
-                      key={view}
-                      active={activeView === view}
-                      label={viewLabels[view]}
-                      onClick={() => setActiveView(view)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </section>
-          </aside>
-
-          <section className="grid min-w-0 content-start gap-5">
-            {showLinks && links.length > 0 && (
-              <ProfileSection icon={<Link2 size={17} />} id="links" title="Links and socials">
-                <div className="grid gap-3 md:grid-cols-2">
-                  {coreLinks.map((link, index) => (
-                    <a
-                      key={`${link.label}-${link.url}`}
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`group flex min-h-[76px] items-center justify-between gap-4 rounded-md border p-4 transition ${
-                        index === 0
-                          ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)] hover:opacity-90"
-                          : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-text)] hover:border-[var(--profile-accent)]"
-                      }`}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-base font-normal">{link.label}</span>
-                        <span className={`mt-1 block truncate text-sm ${index === 0 ? "opacity-70" : "text-[var(--profile-muted)]"}`}>
-                          {displayUrl(link.url)}
-                        </span>
-                      </span>
-                      <ArrowUpRight size={16} className="shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
-                    </a>
-                  ))}
-                </div>
-                {socialLinks.length > 0 && (
-                  <div className="mt-4 border-t border-[var(--profile-border)] pt-4">
-                    <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
-                      social profiles
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                      {socialLinks.map((link) => (
-                        <a
-                          key={`${link.label}-${link.url}`}
-                          href={link.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3 text-sm font-normal text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]"
-                        >
-                          <span className="block">{link.label}</span>
-                          <span className="mt-1 block truncate text-xs text-[var(--profile-muted)]">{displayUrl(link.url)}</span>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </ProfileSection>
-            )}
-
-            {showLibrary && (
-              <ProfileSection icon={<BookOpen size={17} />} id="library" title={libraryTitle}>
-                <div className="grid gap-4">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      className={`rounded-md border px-3 py-2 text-[10px] font-normal uppercase tracking-[0.12em] transition ${
-                        libraryFilter === "all"
-                          ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
-                          : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-muted)] hover:border-[var(--profile-accent)] hover:text-[var(--profile-text)]"
-                      }`}
-                      onClick={() => setLibraryFilter("all")}
-                      type="button"
-                    >
-                      All
-                    </button>
-                    {libraryTypes.map((type) => (
+              {showLibrary && (
+                <ProfileSpineBlock title={libraryTitle}>
+                  <div className="grid gap-3">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         className={`rounded-md border px-3 py-2 text-[10px] font-normal uppercase tracking-[0.12em] transition ${
-                          libraryFilter === type
+                          libraryFilter === "all"
                             ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
                             : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-muted)] hover:border-[var(--profile-accent)] hover:text-[var(--profile-text)]"
                         }`}
-                        key={type}
-                        onClick={() => setLibraryFilter(type)}
+                        onClick={() => setLibraryFilter("all")}
                         type="button"
                       >
-                        {libraryTypeLabels[type]}
+                        All
                       </button>
-                    ))}
-                  </div>
-                  <div className="grid gap-3 lg:grid-cols-3">
-                    {featuredLibraryItems.map((item) => (
-                      <LibraryCard item={item} key={item.id} />
-                    ))}
-                  </div>
-                  {linkedLibraryGroups.length > 0 && (
-                    <div className="grid gap-4 border-t border-[var(--profile-border)] pt-4">
-                      {linkedLibraryGroups.map((group) => (
-                        <div className="grid gap-2" key={group.type}>
-                          <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
-                            {libraryTypeLabels[group.type]}
-                          </div>
-                          <div className="divide-y divide-[var(--profile-border)] overflow-hidden rounded-md border border-[var(--profile-border)]">
-                            {group.items.map((item) => (
-                              <LibraryLinkRow item={item} key={item.id} />
-                            ))}
-                          </div>
-                        </div>
+                      {libraryTypes.map((type) => (
+                        <button
+                          className={`rounded-md border px-3 py-2 text-[10px] font-normal uppercase tracking-[0.12em] transition ${
+                            libraryFilter === type
+                              ? "border-[var(--profile-accent)] bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
+                              : "border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-muted)] hover:border-[var(--profile-accent)] hover:text-[var(--profile-text)]"
+                          }`}
+                          key={type}
+                          onClick={() => setLibraryFilter(type)}
+                          type="button"
+                        >
+                          {libraryTypeLabels[type]}
+                        </button>
                       ))}
+                    </div>
+                    <div className="grid gap-3">
+                      {featuredLibraryItems.map((item) => (
+                        <LibraryCard item={item} key={item.id} />
+                      ))}
+                    </div>
+                    {linkedLibraryGroups.length > 0 && (
+                      <div className="grid gap-4 border-t border-[var(--profile-border)] pt-4">
+                        {linkedLibraryGroups.map((group) => (
+                          <div className="grid gap-2" key={group.type}>
+                            <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
+                              {libraryTypeLabels[group.type]}
+                            </div>
+                            <div className="divide-y divide-[var(--profile-border)] overflow-hidden rounded-md border border-[var(--profile-border)]">
+                              {group.items.map((item) => (
+                                <LibraryLinkRow item={item} key={item.id} />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </ProfileSpineBlock>
+              )}
+            </section>
+          </aside>
+
+          <section className="min-w-0 overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)]">
+            <div className="flex gap-1 overflow-x-auto border-b border-[var(--profile-border)] bg-[var(--profile-surface-lift)] p-2">
+              {profileActionTabs.map((tab) => (
+                <button
+                  className={`min-h-10 shrink-0 rounded-md px-4 text-sm font-normal transition ${
+                    activeActionTab === tab.key
+                      ? "bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
+                      : "text-[var(--profile-muted)] hover:bg-[var(--profile-surface-soft)] hover:text-[var(--profile-text)]"
+                  }`}
+                  key={tab.key}
+                  onClick={() => setActiveActionTab(tab.key)}
+                  type="button"
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-5 sm:p-6">
+              {activeActionTab === "connect" && (
+                <div id="contact" className="scroll-mt-24">
+                  <ProfileTabHeader icon={<Link2 size={18} />} title="Connect" />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {coreLinks.map((link) => (
+                      <RightRailLink link={link} key={`${link.label}-${link.url}`} />
+                    ))}
+                  </div>
+                  {featuredContentItems.length > 0 && (
+                    <div className="mt-5 border-t border-[var(--profile-border)] pt-5">
+                      <div className="mb-3 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
+                        Featured content
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {featuredContentItems.map((item) => (
+                          <RightRailItem item={item} key={item.id} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {socialLinks.length > 0 && (
+                    <div className="mt-5 border-t border-[var(--profile-border)] pt-5">
+                      <div className="mb-3 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
+                        Social
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {socialLinks.map((link) => (
+                          <RightRailLink link={link} key={`${link.label}-${link.url}`} compact />
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
-              </ProfileSection>
-            )}
+              )}
 
-            {roomModules.length > 0 && (
-              <ProfileSection icon={<Grid3X3 size={17} />} id="sections" title="Profile sections">
-                <div className="grid gap-4">
-                  {roomModules.map((module) => (
-                    <article key={module.id} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-5">
-                      <div
-                        className="mb-2 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-accent)]"
-                      >
-                        {profileRoomLabel(module.room, house.type)}
-                      </div>
-                      <h2 className="text-[25px] font-normal uppercase leading-tight text-[var(--profile-text)]">{module.title}</h2>
-                      <p className="mt-3 text-sm leading-7 text-[var(--profile-text-soft)]">{module.body}</p>
-                      {module.bullets && (
-                        <div className="mt-4 grid gap-2 md:grid-cols-3">
-                          {module.bullets.map((bullet) => (
-                            <div key={bullet} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-lift)] p-3 text-sm leading-5 text-[var(--profile-text-soft)]">
-                              {bullet}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {module.cta && (
-                        <a
-                          href={module.cta.href}
-                          className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-[var(--profile-accent)] px-3 text-xs font-normal uppercase tracking-[0.12em] text-[var(--profile-accent-strong)] transition hover:bg-[var(--profile-accent-soft)]"
-                        >
-                          {module.cta.label}
-                          <ArrowUpRight size={13} aria-hidden="true" />
-                        </a>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              </ProfileSection>
-            )}
-
-            {visibleWorkItems.length > 0 && (
-              <ProfileSection icon={<Grid3X3 size={17} />} id="work" title={workSectionTitle(house.name, house.type)}>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {visibleWorkItems.map((item) => (
-                    <ItemCard item={item} key={item.id} />
-                  ))}
-                </div>
-              </ProfileSection>
-            )}
-
-            {visibleProductItems.length > 0 && (
-              <ProfileSection icon={<Package size={17} />} id="products" title={productsSectionTitle(house.type)}>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {visibleProductItems.map((item) => (
-                    <ItemCard item={item} key={item.id} />
-                  ))}
-                </div>
-              </ProfileSection>
-            )}
-
-            {visibleSchedule.length > 0 && (
-              <ProfileSection icon={<CalendarDays size={17} />} id="schedule" title="Schedule">
-                <div className="divide-y divide-[var(--profile-border)] border-t border-[var(--profile-border)]">
-                  {visibleSchedule.map((item) => (
-                    <ScheduleRow item={item} key={item.id} />
-                  ))}
-                </div>
-              </ProfileSection>
-            )}
-
-            {visibleUpdates.length > 0 && (
-              <ProfileSection icon={<Activity size={17} />} id="activity" title="Activity">
-                <div className="grid gap-3">
-                  {visibleUpdates.map((update) => (
-                    <a
-                      key={update.id}
-                      href={update.url ?? "#"}
-                      target={update.url ? "_blank" : undefined}
-                      rel={update.url ? "noreferrer" : undefined}
-                      className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <h3 className="text-base font-normal text-[var(--profile-text)]">{update.title}</h3>
-                        <span className={`shrink-0 border px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] ${statusStyle(update.status)}`}>
-                          {statusLabels[update.status]}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-[var(--profile-text-soft)]">{update.detail}</p>
-                    </a>
-                  ))}
-                </div>
-              </ProfileSection>
-            )}
-
-          </section>
-
-          <aside className="grid content-start gap-5">
-            {(coreLinks.length > 0 || socialLinks.length > 0) && (
-              <Panel icon={<Link2 size={17} />} title="Connect">
-                <div className="grid gap-2">
-                  {coreLinks.slice(0, 4).map((link) => (
-                    <RightRailLink link={link} key={`${link.label}-${link.url}`} />
-                  ))}
-                </div>
-                {socialLinks.length > 0 && (
-                  <div className="mt-3 border-t border-[var(--profile-border)] pt-3">
-                    <div className="mb-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
-                      Social
-                    </div>
-                    <div className="grid gap-2">
-                      {socialLinks.slice(0, 4).map((link) => (
-                        <RightRailLink link={link} key={`${link.label}-${link.url}`} compact />
+              {activeActionTab === "offers" && (
+                <div id="products" className="scroll-mt-24">
+                  <ProfileTabHeader icon={<Package size={18} />} title="Products / Services / Offers" />
+                  {offerItems.length > 0 ? (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {offerItems.map((item) => (
+                        <ItemCard item={item} key={item.id} />
                       ))}
                     </div>
-                  </div>
-                )}
-              </Panel>
-            )}
-
-            {rightRailOffers.length > 0 && (
-              <Panel icon={<Package size={17} />} title="Products / Services / Offers">
-                <div className="grid gap-2">
-                  {rightRailOffers.map((item) => (
-                    <RightRailItem item={item} key={item.id} />
-                  ))}
+                  ) : (
+                    <p className="text-sm leading-6 text-[var(--profile-text-soft)]">
+                      No public offers yet.
+                    </p>
+                  )}
                 </div>
-              </Panel>
-            )}
+              )}
 
-            {connectedProfiles.length > 0 && (
-              <Panel icon={<UserRound size={17} />} title="Work Profile">
-                <div className="grid gap-2">
-                  {connectedProfiles.map(({ label, house: relatedHouse }) => (
-                    <Link
-                      key={`${label}-${relatedHouse.id}`}
-                      href={`/${relatedHouse.handle}`}
-                      className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]"
-                    >
-                      <span className="block truncate text-sm font-normal text-[var(--profile-text)]">{relatedHouse.name}</span>
-                      <span className="mt-1 block text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
-                        {label}
-                      </span>
-                    </Link>
-                  ))}
+              {activeActionTab === "professional" && (
+                <div id="professional" className="scroll-mt-24">
+                  <ProfileTabHeader icon={<UserRound size={18} />} title="Professional profile" />
+
+                  {professionalModules.length > 0 && (
+                    <div className="grid gap-4">
+                      {professionalModules.map((module) => (
+                        <article key={module.id} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-5">
+                          <div className="mb-2 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-accent)]">
+                            {profileRoomLabel(module.room, house.type)}
+                          </div>
+                          <h2 className="text-[24px] font-normal uppercase leading-tight text-[var(--profile-text)]">{module.title}</h2>
+                          <p className="mt-3 text-sm leading-7 text-[var(--profile-text-soft)]">{module.body}</p>
+                          {module.bullets && (
+                            <div className="mt-4 grid gap-2 md:grid-cols-3">
+                              {module.bullets.map((bullet) => (
+                                <div key={bullet} className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-lift)] p-3 text-sm leading-5 text-[var(--profile-text-soft)]">
+                                  {bullet}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {module.cta && (
+                            <a
+                              href={module.cta.href}
+                              className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-[var(--profile-accent)] px-3 text-xs font-normal uppercase tracking-[0.12em] text-[var(--profile-accent-strong)] transition hover:bg-[var(--profile-accent-soft)]"
+                            >
+                              {module.cta.label}
+                              <ArrowUpRight size={13} aria-hidden="true" />
+                            </a>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  )}
+
+                  {workItems.length > 0 && (
+                    <div className="mt-5 border-t border-[var(--profile-border)] pt-5">
+                      <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
+                        <Grid3X3 size={14} aria-hidden="true" />
+                        {workSectionTitle(house.name, house.type)}
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {workItems.map((item) => (
+                          <ItemCard item={item} key={item.id} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {connectedProfiles.length > 0 && (
+                    <div className="mt-5 border-t border-[var(--profile-border)] pt-5">
+                      <div className="mb-3 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
+                        Work profile
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {connectedProfiles.map(({ label, house: relatedHouse }) => (
+                          <Link
+                            key={`${label}-${relatedHouse.id}`}
+                            href={`/${relatedHouse.handle}`}
+                            className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]"
+                          >
+                            <span className="block truncate text-sm font-normal text-[var(--profile-text)]">{relatedHouse.name}</span>
+                            <span className="mt-1 block text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
+                              {label}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {schedule.length > 0 && (
+                    <div className="mt-5 border-t border-[var(--profile-border)] pt-5">
+                      <div className="mb-2 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
+                        <CalendarDays size={14} aria-hidden="true" />
+                        Schedule
+                      </div>
+                      <div className="divide-y divide-[var(--profile-border)] border-t border-[var(--profile-border)]">
+                        {schedule.map((item) => (
+                          <ScheduleRow item={item} key={item.id} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {updates.length > 0 && (
+                    <div className="mt-5 border-t border-[var(--profile-border)] pt-5">
+                      <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
+                        <Activity size={14} aria-hidden="true" />
+                        Activity
+                      </div>
+                      <div className="grid gap-3">
+                        {updates.map((update) => (
+                          <a
+                            key={update.id}
+                            href={update.url ?? "#"}
+                            target={update.url ? "_blank" : undefined}
+                            rel={update.url ? "noreferrer" : undefined}
+                            className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <h3 className="text-base font-normal text-[var(--profile-text)]">{update.title}</h3>
+                              <span className={`shrink-0 border px-2 py-1 text-[9px] font-normal uppercase tracking-[0.14em] ${statusStyle(update.status)}`}>
+                                {statusLabels[update.status]}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-[var(--profile-text-soft)]">{update.detail}</p>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </Panel>
-            )}
-          </aside>
+              )}
+            </div>
+          </section>
         </div>
       </section>
     </main>
@@ -714,61 +658,12 @@ function PillList({ accent = false, items }: { accent?: boolean; items: string[]
   );
 }
 
-function ViewButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function ProfileTabHeader({ icon, title }: { icon: ReactNode; title: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`min-h-10 rounded-md px-3 text-left text-[12px] font-normal uppercase tracking-[0.12em] transition ${
-        active
-          ? "bg-[var(--profile-accent)] text-[var(--profile-button-text)]"
-          : "text-[var(--profile-muted)] hover:bg-[var(--profile-surface-soft)] hover:text-[var(--profile-text)]"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function ProfileSection({
-  children,
-  icon,
-  id,
-  title,
-}: {
-  children: ReactNode;
-  icon: ReactNode;
-  id: string;
-  title: string;
-}) {
-  return (
-    <section id={id} className="scroll-mt-24 rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-5">
-      <div className="flex items-center gap-2">
-        <span className="text-[var(--profile-accent)]">{icon}</span>
-        <h2 className="text-lg font-normal text-[var(--profile-text)]">{title}</h2>
-      </div>
-      <div className="mt-4 text-sm leading-6 text-[var(--profile-text-soft)]">{children}</div>
-    </section>
-  );
-}
-
-function Panel({ children, icon, title }: { children: ReactNode; icon: ReactNode; title: string }) {
-  return (
-    <section className="rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-4">
-      <div className="mb-3 flex items-center gap-2 text-[10px] font-normal uppercase tracking-[0.18em] text-[var(--profile-muted)]">
-        <span className="text-[var(--profile-accent)]">{icon}</span>
-        {title}
-      </div>
-      {children}
-    </section>
+    <div className="mb-5 flex items-center gap-2">
+      <span className="text-[var(--profile-accent)]">{icon}</span>
+      <h2 className="text-lg font-normal text-[var(--profile-text)]">{title}</h2>
+    </div>
   );
 }
 
