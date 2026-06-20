@@ -59,6 +59,8 @@ const libraryStatusLabels: Record<ProfileLibraryItemStatus, string> = {
   finished: "Finished",
 };
 
+const libraryTypeOrder: ProfileLibraryItemType[] = ["book", "game", "tool", "music", "show", "product", "resource"];
+
 function statusStyle(status: HouseStatus) {
   if (status === "live") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
   if (status === "selling") return "border-amber-300/30 bg-amber-300/10 text-amber-200";
@@ -303,6 +305,14 @@ export default function ProfileView({ profile }: Props) {
   const libraryTypes = Array.from(new Set(libraryItems.map((item) => item.type)));
   const visibleLibraryItems =
     libraryFilter === "all" ? libraryItems : libraryItems.filter((item) => item.type === libraryFilter);
+  const featuredLibraryItems = visibleLibraryItems.slice(0, 3);
+  const linkedLibraryItems = visibleLibraryItems.slice(3);
+  const linkedLibraryGroups = libraryTypeOrder
+    .map((type) => ({
+      type,
+      items: linkedLibraryItems.filter((item) => item.type === type),
+    }))
+    .filter((group) => group.items.length > 0);
   const libraryTitle = house.handle === "streamo" ? "My Games" : "Library";
   const avatarColor = avatarOverride?.color ?? house.primaryColor;
   const avatarImage = avatarOverride?.image;
@@ -499,11 +509,27 @@ export default function ProfileView({ profile }: Props) {
                       </button>
                     ))}
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {visibleLibraryItems.map((item) => (
+                  <div className="grid gap-3 lg:grid-cols-3">
+                    {featuredLibraryItems.map((item) => (
                       <LibraryCard item={item} key={item.id} />
                     ))}
                   </div>
+                  {linkedLibraryGroups.length > 0 && (
+                    <div className="grid gap-4 border-t border-[var(--profile-border)] pt-4">
+                      {linkedLibraryGroups.map((group) => (
+                        <div className="grid gap-2" key={group.type}>
+                          <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--profile-muted)]">
+                            {libraryTypeLabels[group.type]}
+                          </div>
+                          <div className="divide-y divide-[var(--profile-border)] overflow-hidden rounded-md border border-[var(--profile-border)]">
+                            {group.items.map((item) => (
+                              <LibraryLinkRow item={item} key={item.id} />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </ProfileSection>
             )}
@@ -835,6 +861,42 @@ function LibraryCard({ item }: { item: ProfileLibraryItem }) {
   return (
     <a href={item.url} target={item.url.startsWith("http") ? "_blank" : undefined} rel={item.url.startsWith("http") ? "noreferrer" : undefined}>
       {card}
+    </a>
+  );
+}
+
+function LibraryLinkRow({ item }: { item: ProfileLibraryItem }) {
+  const content = (
+    <>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-normal text-[var(--profile-text)]">{item.title}</span>
+        <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
+          <span>{libraryStatusLabels[item.status]}</span>
+          {item.tags.slice(0, 3).map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </span>
+      </span>
+      {item.url && <ArrowUpRight size={14} className="shrink-0 text-[var(--profile-accent)]" aria-hidden="true" />}
+    </>
+  );
+
+  if (!item.url) {
+    return (
+      <div className="flex min-h-14 items-center justify-between gap-3 bg-[var(--profile-surface-soft)] px-3 py-2">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={item.url}
+      target={item.url.startsWith("http") ? "_blank" : undefined}
+      rel={item.url.startsWith("http") ? "noreferrer" : undefined}
+      className="flex min-h-14 items-center justify-between gap-3 bg-[var(--profile-surface-soft)] px-3 py-2 transition hover:bg-[var(--profile-surface-lift)]"
+    >
+      {content}
     </a>
   );
 }

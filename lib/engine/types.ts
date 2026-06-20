@@ -1,8 +1,11 @@
 export type ProfileThemeId =
-  | "obsidian-ember"
-  | "liquid-graphite"
-  | "porcelain-ink"
-  | "garden-lumen";
+  | "midnight"
+  | "arcade"
+  | "clean-white"
+  | "redline"
+  | "neon"
+  | "cozy-dark"
+  | "minimal-pro";
 
 export type HouseType =
   | "person"

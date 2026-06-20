@@ -11,6 +11,7 @@ import {
   Eye,
   Link2,
   Palette,
+  Plus,
   Share2,
   UserRound,
   type LucideIcon,
@@ -75,7 +76,7 @@ function currentProfileUrl() {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [copyLabel, setCopyLabel] = useState("Copy");
-  const [selectedTheme, setSelectedTheme] = useState<ProfileThemeId>("obsidian-ember");
+  const [selectedTheme, setSelectedTheme] = useState<ProfileThemeId>("midnight");
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
@@ -229,15 +230,103 @@ function LinksSettings() {
   );
 }
 
+type LibraryDraft = {
+  id: string;
+  note: string;
+  status: string;
+  tags: string;
+  title: string;
+  type: string;
+};
+
+const libraryTypeOptions = ["Book", "Game", "Tool", "Music", "Show", "Product", "Resource"];
+const libraryStatusOptions = ["Recommend", "Using", "Playing", "Reading", "Want", "Finished"];
+const libraryTagOptions = ["systems", "habits", "workflow", "gaming", "cozy", "books", "tools", "music", "local", "resources"];
+
+const initialLibraryDrafts: LibraryDraft[] = [
+  {
+    id: "atomic-habits",
+    title: "Atomic Habits",
+    type: "Book",
+    status: "Recommend",
+    tags: "habits, systems",
+    note: "Useful baseline for systems and small repeatable actions.",
+  },
+  {
+    id: "stream-deck",
+    title: "Stream Deck",
+    type: "Tool",
+    status: "Using",
+    tags: "workflow, studio",
+    note: "Fast shortcuts for repeated workflows.",
+  },
+  {
+    id: "lofi-work",
+    title: "Lo-fi work playlists",
+    type: "Music",
+    status: "Using",
+    tags: "focus, building",
+    note: "Default background layer for long build days.",
+  },
+  {
+    id: "stop-collection",
+    title: "STOP Collection",
+    type: "Product",
+    status: "Recommend",
+    tags: "habits, book, journal",
+    note: "Books and journals for stopping patterns that cost too much.",
+  },
+];
+
 function LibrarySettings() {
+  const [items, setItems] = useState<LibraryDraft[]>(initialLibraryDrafts);
+
+  function addItem() {
+    setItems((currentItems) => [
+      ...currentItems,
+      {
+        id: `library-${Date.now()}`,
+        title: "New library item",
+        type: "Book",
+        status: "Recommend",
+        tags: "systems",
+        note: "Short note",
+      },
+    ]);
+  }
+
   return (
     <>
       <SettingsHeader eyebrow="library" title="Library" />
+      <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+        <div className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
+          <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
+            shelf tags
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {libraryTagOptions.map((tag) => (
+              <span
+                className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-[10px] font-normal uppercase tracking-[0.12em] text-[#c8bdae]"
+                key={tag}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+        <button
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-[#ff6a00] bg-[#ff6a00] px-4 text-sm font-normal text-[#050505] transition hover:opacity-90"
+          onClick={addItem}
+          type="button"
+        >
+          <Plus size={16} aria-hidden="true" />
+          Add item
+        </button>
+      </div>
       <SettingsPanel>
-        <LibraryField title="Atomic Habits" type="Book" status="Recommend" tags="habits, systems" note="Useful baseline for systems and small repeatable actions." />
-        <LibraryField title="Stream Deck" type="Tool" status="Using" tags="workflow, studio" note="Fast shortcuts for repeated workflows." />
-        <LibraryField title="Lo-fi work playlists" type="Music" status="Using" tags="focus, building" note="Default background layer for long build days." />
-        <LibraryField title="Add item" type="Game, Book, Tool, Music, Show, Product, Resource" status="Playing, Reading, Using, Recommend, Want, Finished" tags="custom tags" note="Short note" />
+        {items.map((item, index) => (
+          <LibraryField featured={index < 3} item={item} key={item.id} />
+        ))}
       </SettingsPanel>
     </>
   );
@@ -440,46 +529,57 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LibraryField({
-  note,
-  status,
-  tags,
-  title,
-  type,
-}: {
-  note: string;
-  status: string;
-  tags: string;
-  title: string;
-  type: string;
-}) {
+function LibraryField({ featured = false, item }: { featured?: boolean; item: LibraryDraft }) {
   return (
     <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_130px_150px]">
+      <div className="flex items-center gap-2 lg:col-span-3">
+        <span className="rounded-md border border-white/10 bg-white/[0.035] px-2 py-1 text-[9px] font-normal uppercase tracking-[0.12em] text-[#8f8577]">
+          {featured ? "Visual card" : "Link row"}
+        </span>
+      </div>
       <input
         aria-label="Title"
         className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60"
-        defaultValue={title}
+        defaultValue={item.title}
       />
-      <input
+      <select
         aria-label="Type"
         className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60"
-        defaultValue={type}
-      />
-      <input
+        defaultValue={item.type}
+      >
+        {libraryTypeOptions.map((type) => (
+          <option className="bg-[#0d0d0d]" key={type} value={type}>
+            {type}
+          </option>
+        ))}
+      </select>
+      <select
         aria-label="Status"
         className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60"
-        defaultValue={status}
-      />
+        defaultValue={item.status}
+      >
+        {libraryStatusOptions.map((status) => (
+          <option className="bg-[#0d0d0d]" key={status} value={status}>
+            {status}
+          </option>
+        ))}
+      </select>
       <input
         aria-label="Tags"
         className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60 lg:col-span-1"
-        defaultValue={tags}
+        defaultValue={item.tags}
+        list="library-tag-options"
       />
       <input
         aria-label="Note"
         className="min-h-10 rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-normal text-white outline-none transition focus:border-[#ff6a00]/60 lg:col-span-2"
-        defaultValue={note}
+        defaultValue={item.note}
       />
+      <datalist id="library-tag-options">
+        {libraryTagOptions.map((tag) => (
+          <option key={tag} value={tag} />
+        ))}
+      </datalist>
     </div>
   );
 }
