@@ -312,7 +312,7 @@ export default function ProfileView({ profile }: Props) {
     <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(theme)}>
       <section className="mx-auto max-w-7xl px-5 py-4 sm:px-8 lg:px-10">
         <article className="relative isolate overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] shadow-[0_22px_90px_var(--profile-shadow)]">
-          <div className="relative z-0 min-h-[230px] border-b border-[var(--profile-border)]" style={{ background: coverBackground(house.primaryColor, theme) }}>
+          <div className="relative z-0 min-h-[170px] border-b border-[var(--profile-border)] sm:min-h-[185px]" style={{ background: coverBackground(house.primaryColor, theme) }}>
             <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
           </div>
 
