@@ -148,13 +148,21 @@ function AvatarPreview({
   size?: "sm" | "md";
 }) {
   const hasImage = Boolean(avatar.image);
+  const isOutline = avatar.mode === "outline" && !hasImage;
 
   return (
     <span
       className={`site-avatar-preview ${size === "md" ? "site-avatar-preview-md" : "site-avatar-preview-sm"} ${
-        avatar.mode === "outline" && !hasImage ? "is-outline" : "is-fill"
+        isOutline ? "is-outline" : "is-fill"
       }`}
-      style={{ "--avatar-color": avatar.color } as CSSProperties}
+      style={
+        {
+          "--avatar-color": avatar.color,
+          background: isOutline ? "transparent" : avatar.color,
+          borderColor: avatar.color,
+          color: isOutline ? avatar.color : "#1f1a16",
+        } as CSSProperties
+      }
     >
       {avatar.image ? <img alt="" src={avatar.image} /> : initials}
     </span>
@@ -201,11 +209,33 @@ export default function BuildingEmpiresShell({
   const [copyMessage, setCopyMessage] = useState("Copy profile link");
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarKey = `${avatar.mode}-${avatar.color}-${avatar.image ? avatar.image.length : 0}`;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("building-empires-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    function syncStoredAvatar() {
+      setAvatar(parseAvatarSettings(window.localStorage.getItem(profileAvatarStorageKey(profileHandle))));
+    }
+
+    function onAvatarChange(event: Event) {
+      const detail = (event as CustomEvent<{ avatar?: AvatarSettings; handle?: string }>).detail;
+      if (detail?.handle !== profileHandle || !detail.avatar) return;
+      setAvatar(detail.avatar);
+    }
+
+    syncStoredAvatar();
+    window.addEventListener("storage", syncStoredAvatar);
+    window.addEventListener("buildingempires:profile-avatar", onAvatarChange);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredAvatar);
+      window.removeEventListener("buildingempires:profile-avatar", onAvatarChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -332,7 +362,7 @@ export default function BuildingEmpiresShell({
                 title="Account"
                 type="button"
               >
-                <AvatarPreview avatar={avatar} initials="AD" />
+                <AvatarPreview avatar={avatar} initials="AD" key={`trigger-${avatarKey}`} />
               </button>
 
               <input
@@ -356,7 +386,7 @@ export default function BuildingEmpiresShell({
                       title="Change profile picture"
                       type="button"
                     >
-                      <AvatarPreview avatar={avatar} initials="AD" size="md" />
+                      <AvatarPreview avatar={avatar} initials="AD" key={`menu-${avatarKey}`} size="md" />
                     </button>
                     <span className="site-settings-who">
                       <span className="site-settings-name">Andrea Dailey</span>

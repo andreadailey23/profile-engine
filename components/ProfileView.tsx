@@ -11,11 +11,11 @@ import {
   Grid3X3,
   Link2,
   Package,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import type {
   HouseItem,
+  HouseLink,
   HouseStatus,
   HouseType,
   ProfileLibraryItem,
@@ -169,7 +169,7 @@ type Props = {
 };
 
 const viewLabels: Record<ProfileViewType, string> = {
-  default: "Overview",
+  default: "Profile",
   social: "Social",
   marketplace: "Marketplace",
   professional: "Professional",
@@ -291,6 +291,13 @@ export default function ProfileView({ profile }: Props) {
   ];
   const socialLinks = links.filter((link) => link.type === "social");
   const coreLinks = links.filter((link) => link.type !== "social");
+  const rightRailOffers = items
+    .filter(
+      (item) =>
+        itemDisplayGroup(item) === "product" ||
+        ["book", "collection", "course", "offer", "service", "store", "tool"].includes(item.itemType),
+    )
+    .slice(0, 4);
   const showLinks = activeRooms.includes("links");
   const showLibrary = activeRooms.includes("library") && libraryItems.length > 0;
   const libraryTypes = Array.from(new Set(libraryItems.map((item) => item.type)));
@@ -300,12 +307,6 @@ export default function ProfileView({ profile }: Props) {
   const avatarColor = avatarOverride?.color ?? house.primaryColor;
   const avatarImage = avatarOverride?.image;
   const avatarIsOutline = avatarOverride?.mode === "outline" && !avatarImage;
-  const featuredPath = [
-    links[0] && { label: "Start here", value: links[0].label, href: links[0].url },
-    workItems[0] && { label: "Explore", value: workItems[0].title, href: workItems[0].url },
-    productItems[0] && { label: "Use", value: productItems[0].title, href: productItems[0].url },
-    updates[0] && { label: "Follow", value: "Build updates", href: updates[0].url },
-  ].filter(Boolean) as Array<{ label: string; value: string; href?: string }>;
 
   return (
     <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(theme)}>
@@ -418,42 +419,6 @@ export default function ProfileView({ profile }: Props) {
           </aside>
 
           <section className="grid min-w-0 content-start gap-5">
-            <ProfileSection icon={<Sparkles size={17} />} id="overview" title={viewLabels[activeView]}>
-              <div className="grid gap-4">
-                <p className="text-base leading-7 text-[var(--profile-text-soft)]">{house.description}</p>
-                {featuredPath.length > 0 && (
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    {featuredPath.map((item) => {
-                      const content = (
-                        <>
-                          <span className="block text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
-                            {item.label}
-                          </span>
-                          <span className="mt-2 block text-sm font-normal text-[var(--profile-text)]">{item.value}</span>
-                        </>
-                      );
-
-                      return item.href ? (
-                        <a
-                          className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4 transition hover:border-[var(--profile-accent)]"
-                          href={item.href}
-                          key={`${item.label}-${item.value}`}
-                          rel={item.href.startsWith("http") ? "noreferrer" : undefined}
-                          target={item.href.startsWith("http") ? "_blank" : undefined}
-                        >
-                          {content}
-                        </a>
-                      ) : (
-                        <div className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-4" key={`${item.label}-${item.value}`}>
-                          {content}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </ProfileSection>
-
             {showLinks && links.length > 0 && (
               <ProfileSection icon={<Link2 size={17} />} id="links" title="Links and socials">
                 <div className="grid gap-3 md:grid-cols-2">
@@ -635,8 +600,40 @@ export default function ProfileView({ profile }: Props) {
           </section>
 
           <aside className="grid content-start gap-5">
+            {(coreLinks.length > 0 || socialLinks.length > 0) && (
+              <Panel icon={<Link2 size={17} />} title="Connect">
+                <div className="grid gap-2">
+                  {coreLinks.slice(0, 4).map((link) => (
+                    <RightRailLink link={link} key={`${link.label}-${link.url}`} />
+                  ))}
+                </div>
+                {socialLinks.length > 0 && (
+                  <div className="mt-3 border-t border-[var(--profile-border)] pt-3">
+                    <div className="mb-2 text-[10px] font-normal uppercase tracking-[0.14em] text-[var(--profile-muted)]">
+                      Social
+                    </div>
+                    <div className="grid gap-2">
+                      {socialLinks.slice(0, 4).map((link) => (
+                        <RightRailLink link={link} key={`${link.label}-${link.url}`} compact />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Panel>
+            )}
+
+            {rightRailOffers.length > 0 && (
+              <Panel icon={<Package size={17} />} title="Products / Services / Offers">
+                <div className="grid gap-2">
+                  {rightRailOffers.map((item) => (
+                    <RightRailItem item={item} key={item.id} />
+                  ))}
+                </div>
+              </Panel>
+            )}
+
             {connectedProfiles.length > 0 && (
-              <Panel icon={<UserRound size={17} />} title="Connected Empires">
+              <Panel icon={<UserRound size={17} />} title="Work Profile">
                 <div className="grid gap-2">
                   {connectedProfiles.map(({ label, house: relatedHouse }) => (
                     <Link
@@ -729,9 +726,9 @@ function ProfileSection({
     <section id={id} className="scroll-mt-24 rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] p-5">
       <div className="flex items-center gap-2">
         <span className="text-[var(--profile-accent)]">{icon}</span>
-        <h2 className="text-xl font-normal text-[var(--profile-text)]">{title}</h2>
+        <h2 className="text-lg font-normal text-[var(--profile-text)]">{title}</h2>
       </div>
-      <div className="mt-4 text-base leading-7 text-[var(--profile-text-soft)]">{children}</div>
+      <div className="mt-4 text-sm leading-6 text-[var(--profile-text-soft)]">{children}</div>
     </section>
   );
 }
@@ -745,6 +742,69 @@ function Panel({ children, icon, title }: { children: ReactNode; icon: ReactNode
       </div>
       {children}
     </section>
+  );
+}
+
+function RightRailLink({ compact = false, link }: { compact?: boolean; link: HouseLink }) {
+  return (
+    <a
+      href={link.url}
+      target={link.url.startsWith("http") ? "_blank" : undefined}
+      rel={link.url.startsWith("http") ? "noreferrer" : undefined}
+      className="group rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]"
+    >
+      <span className="flex items-center justify-between gap-3">
+        <span className="min-w-0">
+          <span className={`${compact ? "text-sm" : "text-base"} block truncate font-normal text-[var(--profile-text)]`}>
+            {link.label}
+          </span>
+          <span className="mt-1 block truncate text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
+            {displayUrl(link.url)}
+          </span>
+        </span>
+        <ArrowUpRight
+          size={14}
+          className="shrink-0 text-[var(--profile-accent)] transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+          aria-hidden="true"
+        />
+      </span>
+    </a>
+  );
+}
+
+function RightRailItem({ item }: { item: HouseItem }) {
+  const content = (
+    <span className="block">
+      <span className="mb-2 block text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
+        {item.kindLabel ?? item.itemType}
+      </span>
+      <span className="block text-sm font-normal text-[var(--profile-text)]">{item.title}</span>
+      {(item.price || item.ctaLabel) && (
+        <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-accent-strong)]">
+          {item.price && <span>{item.price}</span>}
+          {item.ctaLabel && <span>{item.ctaLabel}</span>}
+        </span>
+      )}
+    </span>
+  );
+
+  if (!item.url) {
+    return (
+      <div className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={item.url}
+      target={item.url.startsWith("http") ? "_blank" : undefined}
+      rel={item.url.startsWith("http") ? "noreferrer" : undefined}
+      className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3 transition hover:border-[var(--profile-accent)] hover:bg-[var(--profile-surface-lift)]"
+    >
+      {content}
+    </a>
   );
 }
 
