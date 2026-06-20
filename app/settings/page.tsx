@@ -17,6 +17,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getProfileTheme, profileThemes } from "@/lib/engine/themes";
+import {
+  profileCoverBackground,
+  profileCovers,
+  validProfileCoverId,
+  type ProfileCoverId,
+} from "@/lib/engine/covers";
 import type { ProfileThemeId } from "@/lib/engine/types";
 
 type SettingsTab = "profile" | "library" | "links" | "schedule" | "appearance" | "sharing" | "account";
@@ -25,6 +31,7 @@ const profilePath = "/andrea-dailey";
 const profileHandle = "andrea-dailey";
 const productionOrigin = "https://buildingempires.co";
 const profileThemeStorageKey = `building-empires-profile-theme-${profileHandle}`;
+const profileCoverStorageKey = `building-empires-profile-cover-${profileHandle}`;
 
 const tabs: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
   { key: "profile", label: "Profile", icon: UserRound },
@@ -81,6 +88,7 @@ function settingsTabFromUrl() {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [copyLabel, setCopyLabel] = useState("Copy");
+  const [selectedCover, setSelectedCover] = useState<ProfileCoverId>("grid-glow");
   const [selectedTheme, setSelectedTheme] = useState<ProfileThemeId>("midnight");
 
   useEffect(() => {
@@ -114,6 +122,9 @@ export default function SettingsPage() {
     if (storedTheme && validThemeIds.has(storedTheme as ProfileThemeId)) {
       window.requestAnimationFrame(() => setSelectedTheme(storedTheme as ProfileThemeId));
     }
+
+    const storedCover = validProfileCoverId(window.localStorage.getItem(profileCoverStorageKey));
+    if (storedCover) window.requestAnimationFrame(() => setSelectedCover(storedCover));
   }, []);
 
   function selectTab(tab: SettingsTab) {
@@ -147,6 +158,16 @@ export default function SettingsPage() {
     );
   }
 
+  function selectCover(coverId: ProfileCoverId) {
+    setSelectedCover(coverId);
+    window.localStorage.setItem(profileCoverStorageKey, coverId);
+    window.dispatchEvent(
+      new CustomEvent("buildingempires:profile-cover", {
+        detail: { handle: profileHandle, coverId },
+      }),
+    );
+  }
+
   return (
     <main className="min-h-full bg-[#050505] text-[#f7f0df]">
       <div className="flex min-h-[calc(100vh-var(--topbar-h)-var(--footer-h))]">
@@ -162,17 +183,39 @@ export default function SettingsPage() {
           </div>
 
           <section className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-10">
+            <SettingsReturnBar />
             {activeTab === "profile" && <ProfileSettings />}
             {activeTab === "library" && <LibrarySettings />}
             {activeTab === "links" && <LinksSettings />}
             {activeTab === "schedule" && <ScheduleSettings />}
-            {activeTab === "appearance" && <AppearanceSettings selectedTheme={selectedTheme} onSelectTheme={selectTheme} />}
+            {activeTab === "appearance" && (
+              <AppearanceSettings
+                selectedCover={selectedCover}
+                selectedTheme={selectedTheme}
+                onSelectCover={selectCover}
+                onSelectTheme={selectTheme}
+              />
+            )}
             {activeTab === "sharing" && <SharingSettings copyLabel={copyLabel} onCopy={copyProfileLink} />}
             {activeTab === "account" && <AccountSettings />}
           </section>
         </div>
       </div>
     </main>
+  );
+}
+
+function SettingsReturnBar() {
+  return (
+    <div className="mb-5 flex justify-end">
+      <Link
+        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#ff6a00]/35 bg-[#0d0d0d] px-3 text-sm font-normal text-[#ffb16b] transition hover:border-[#ff6a00] hover:text-[#ffd1aa]"
+        href={profilePath}
+      >
+        <Eye size={15} aria-hidden="true" />
+        View profile
+      </Link>
+    </div>
   );
 }
 
@@ -370,10 +413,14 @@ function ScheduleSettings() {
 }
 
 function AppearanceSettings({
+  selectedCover,
   selectedTheme,
+  onSelectCover,
   onSelectTheme,
 }: {
+  selectedCover: ProfileCoverId;
   selectedTheme: ProfileThemeId;
+  onSelectCover: (coverId: ProfileCoverId) => void;
   onSelectTheme: (themeId: ProfileThemeId) => void;
 }) {
   const activeTheme = getProfileTheme(selectedTheme);
@@ -404,6 +451,51 @@ function AppearanceSettings({
                   />
                 ))}
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
+          <div className="mb-3">
+            <div>
+              <div className="text-[10px] font-normal uppercase tracking-[0.16em] text-[#8f8577]">
+                cover background
+              </div>
+              <h2 className="mt-1 text-xl font-normal uppercase leading-none text-white">
+                Background
+              </h2>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {profileCovers.map((cover) => {
+              const active = selectedCover === cover.id;
+
+              return (
+                <button
+                  className={`rounded-md border p-3 text-left transition ${
+                    active
+                      ? "border-[#ff6a00] bg-[#ff6a00]/10"
+                      : "border-white/10 bg-white/[0.025] hover:border-white/25"
+                  }`}
+                  key={cover.id}
+                  onClick={() => onSelectCover(cover.id)}
+                  type="button"
+                >
+                  <div
+                    className="relative mb-3 h-20 overflow-hidden rounded-md border border-white/10"
+                    style={{ background: profileCoverBackground(activeTheme.colors, cover.id) }}
+                  >
+                    {cover.grid && (
+                      <div className="pointer-events-none absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(255,255,255,.16)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.16)_1px,transparent_1px)] [background-size:22px_22px]" />
+                    )}
+                  </div>
+                  <div className="text-[10px] font-normal uppercase tracking-[0.14em] text-[#ffb16b]">
+                    {cover.label}
+                  </div>
+                  <div className="mt-1 text-sm font-normal text-white">{cover.name}</div>
+                  <p className="mt-1 text-xs leading-5 text-[#8f8577]">{cover.description}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
 

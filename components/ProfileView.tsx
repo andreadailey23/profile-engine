@@ -25,6 +25,12 @@ import type {
   ScheduleItem,
 } from "@/lib/engine/types";
 import { getProfileTheme, profileThemes } from "@/lib/engine/themes";
+import {
+  getProfileCover,
+  profileCoverBackground,
+  validProfileCoverId,
+  type ProfileCoverId,
+} from "@/lib/engine/covers";
 import type { ProfileRecord } from "@/lib/engine/selectors";
 
 const statusLabels: Record<HouseStatus, string> = {
@@ -104,6 +110,10 @@ function profileAvatarStorageKey(handle: string) {
   return `building-empires-profile-avatar-${handle}`;
 }
 
+function profileCoverStorageKey(handle: string) {
+  return `building-empires-profile-cover-${handle}`;
+}
+
 function validThemeId(value: string | null): ProfileThemeId | undefined {
   return profileThemes.some((theme) => theme.id === value) ? (value as ProfileThemeId) : undefined;
 }
@@ -149,13 +159,6 @@ function profileThemeVars(theme: ReturnType<typeof getProfileTheme>) {
   } as CSSProperties;
 }
 
-function coverBackground(theme: ReturnType<typeof getProfileTheme>) {
-  return `
-    linear-gradient(118deg, ${theme.colors.accent}42 0%, ${theme.colors.accentSoft} 34%, transparent 64%),
-    linear-gradient(180deg, ${theme.colors.surfaceLift} 0%, ${theme.colors.surface} 100%)
-  `;
-}
-
 type Props = {
   profile: NonNullable<ProfileRecord>;
 };
@@ -187,9 +190,11 @@ export default function ProfileView({ profile }: Props) {
   } = profile;
   const [activeActionTab, setActiveActionTab] = useState<ProfileActionTab>("connect");
   const [avatarOverride, setAvatarOverride] = useState<AvatarSettings | undefined>();
+  const [coverOverride, setCoverOverride] = useState<ProfileCoverId | undefined>();
   const [libraryFilter, setLibraryFilter] = useState<ProfileLibraryItemType | "all">("all");
   const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
   const theme = getProfileTheme(themeOverride ?? house.themeId);
+  const cover = getProfileCover(coverOverride);
 
   useEffect(() => {
     function syncStoredTheme() {
@@ -230,6 +235,27 @@ export default function ProfileView({ profile }: Props) {
     return () => {
       window.removeEventListener("storage", syncStoredAvatar);
       window.removeEventListener("buildingempires:profile-avatar", onAvatarChange);
+    };
+  }, [house.handle]);
+
+  useEffect(() => {
+    function syncStoredCover() {
+      setCoverOverride(validProfileCoverId(window.localStorage.getItem(profileCoverStorageKey(house.handle))));
+    }
+
+    function onCoverChange(event: Event) {
+      const detail = (event as CustomEvent<{ coverId?: ProfileCoverId; handle?: string }>).detail;
+      if (detail?.handle !== house.handle) return;
+      setCoverOverride(validProfileCoverId(detail.coverId ?? null));
+    }
+
+    syncStoredCover();
+    window.addEventListener("storage", syncStoredCover);
+    window.addEventListener("buildingempires:profile-cover", onCoverChange);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredCover);
+      window.removeEventListener("buildingempires:profile-cover", onCoverChange);
     };
   }, [house.handle]);
 
@@ -289,8 +315,10 @@ export default function ProfileView({ profile }: Props) {
     <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(theme)}>
       <section className="mx-auto max-w-7xl px-5 py-4 sm:px-8 lg:px-10">
         <article className="relative isolate overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)] shadow-[0_22px_90px_var(--profile-shadow)]">
-          <div className="relative z-0 min-h-[170px] border-b border-[var(--profile-border)] sm:min-h-[185px]" style={{ background: coverBackground(theme) }}>
-            <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
+          <div className="relative z-0 min-h-[170px] border-b border-[var(--profile-border)] sm:min-h-[185px]" style={{ background: profileCoverBackground(theme.colors, cover.id) }}>
+            {cover.grid && (
+              <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
+            )}
           </div>
 
           <div className="relative z-10 px-5 pb-6 sm:px-7">
