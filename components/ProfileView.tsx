@@ -623,6 +623,19 @@ export default function ProfileView({ profile }: Props) {
               {house.highlights && house.highlights.length > 0 && (
                 <ProfileSpineBlock title="Stats">
                   <div className="grid gap-2">
+                    {typeof house.level === "number" && (
+                      <div className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-sm font-normal text-[var(--profile-text)]">Level {house.level}</span>
+                          <span className="text-[10px] font-normal uppercase tracking-[0.12em] text-[var(--profile-muted)]">
+                            {Math.round((house.levelProgress ?? 0) * 100)}% to {house.level + 1}
+                          </span>
+                        </div>
+                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[var(--profile-border)]">
+                          <div className="h-full rounded-full bg-[var(--profile-accent)]" style={{ width: `${Math.round((house.levelProgress ?? 0) * 100)}%` }} />
+                        </div>
+                      </div>
+                    )}
                     {house.highlights.slice(0, 4).map((highlight) => (
                       <div
                         className="rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] p-3"

@@ -116,6 +116,8 @@ export type House = {
   bannerUrl?: string;
   live?: boolean;
   statusLine?: string;
+  level?: number;
+  levelProgress?: number;
   primaryColor: string;
   themeId?: ProfileThemeId;
   status: HouseStatus;
