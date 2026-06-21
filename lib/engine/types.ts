@@ -114,6 +114,8 @@ export type House = {
   initials: string;
   avatarUrl?: string;
   bannerUrl?: string;
+  live?: boolean;
+  statusLine?: string;
   primaryColor: string;
   themeId?: ProfileThemeId;
   status: HouseStatus;

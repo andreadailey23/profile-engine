@@ -550,6 +550,22 @@ export default function ProfileView({ profile }: Props) {
                 {avatarImage ? <img alt="" className="h-full w-full object-cover" src={avatarImage} /> : house.initials}
               </div>
               <div className="min-w-0 pt-4 sm:pt-5">
+                {(house.live || house.statusLine) && (
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    {house.live && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ff2d55] px-2 py-0.5 text-[10px] font-normal uppercase tracking-[0.12em] text-white">
+                        <span className="relative flex size-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                          <span className="relative inline-flex size-1.5 rounded-full bg-white" />
+                        </span>
+                        Live
+                      </span>
+                    )}
+                    {house.statusLine && (
+                      <span className="text-[12px] font-normal text-[var(--profile-text-soft)]">{house.statusLine}</span>
+                    )}
+                  </div>
+                )}
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                   <p className="max-w-3xl text-[15px] leading-6 text-[var(--profile-text-soft)]">
                     {house.shortDescription}
