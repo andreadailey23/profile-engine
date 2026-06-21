@@ -513,8 +513,8 @@ export default function ProfileView({ profile }: Props) {
               <Settings size={17} strokeWidth={1.8} aria-hidden="true" />
             </Link>
           )}
-          <div className="relative z-0 min-h-[150px] border-b border-[var(--profile-border)] sm:min-h-[168px]" style={{ background: profileCoverBackground(colors, cover.id) }}>
-            {cover.grid && (
+          <div className="relative z-0 min-h-[150px] border-b border-[var(--profile-border)] sm:min-h-[168px]" style={{ background: house.bannerUrl ? `center / cover no-repeat url(${house.bannerUrl})` : profileCoverBackground(colors, cover.id) }}>
+            {cover.grid && !house.bannerUrl && (
               <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
             )}
             {visibleBannerIdentities.length > 0 && (

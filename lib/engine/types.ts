@@ -113,6 +113,7 @@ export type House = {
   description: string;
   initials: string;
   avatarUrl?: string;
+  bannerUrl?: string;
   primaryColor: string;
   themeId?: ProfileThemeId;
   status: HouseStatus;
