@@ -494,7 +494,7 @@ export default function ProfileView({ profile }: Props) {
     .filter((group) => group.items.length > 0);
   const libraryTitle = house.handle === "streamo" ? "My Games" : "Library";
   const avatarColor = colors.accent;
-  const avatarImage = avatarOverride?.image;
+  const avatarImage = avatarOverride?.image ?? house.avatarUrl;
   const avatarIsOutline = avatarOverride?.mode === "outline" && !avatarImage;
   const visibleBannerIdentities = bannerVisible ? bannerIdentities.slice(0, 3) : [];
   const isOwnProfile = house.handle === ownerProfileHandle;

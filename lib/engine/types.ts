@@ -112,6 +112,7 @@ export type House = {
   shortDescription: string;
   description: string;
   initials: string;
+  avatarUrl?: string;
   primaryColor: string;
   themeId?: ProfileThemeId;
   status: HouseStatus;
