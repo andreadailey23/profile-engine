@@ -1,7 +1,18 @@
 {
-  "name": "profile-engine",
+  "name": "@playwave/profile-engine",
   "version": "0.1.0",
   "private": true,
+  "exports": {
+    "./ProfileView": "./components/ProfileView.tsx",
+    "./selectors": "./lib/engine/selectors.ts",
+    "./types": "./lib/engine/types.ts",
+    "./themes": "./lib/engine/themes.ts",
+    "./covers": "./lib/engine/covers.ts"
+  },
+  "files": [
+    "components",
+    "lib"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,10 +20,12 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "lucide-react": "^1.21.0",
-    "next": "16.2.9",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "lucide-react": "^1.21.0"
+  },
+  "peerDependencies": {
+    "next": ">=16",
+    "react": ">=19",
+    "react-dom": ">=19"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -21,6 +34,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

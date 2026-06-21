@@ -20,8 +20,8 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { getProfileTheme, profileThemes } from "@/lib/engine/themes";
-import type { ProfileThemeId } from "@/lib/engine/types";
+import { getProfileTheme, profileThemes } from "../lib/engine/themes";
+import type { ProfileThemeId } from "../lib/engine/types";
 
 type NavItem = {
   href: string;

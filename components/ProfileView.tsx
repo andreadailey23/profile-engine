@@ -26,15 +26,15 @@ import type {
   ProfileThemeId,
   RoomType,
   ScheduleItem,
-} from "@/lib/engine/types";
-import { getProfileTheme, profileThemes } from "@/lib/engine/themes";
+} from "../lib/engine/types";
+import { getProfileTheme, profileThemes } from "../lib/engine/themes";
 import {
   getProfileCover,
   profileCoverBackground,
   validProfileCoverId,
   type ProfileCoverId,
-} from "@/lib/engine/covers";
-import type { ProfileRecord } from "@/lib/engine/selectors";
+} from "../lib/engine/covers";
+import type { ProfileRecord } from "../lib/engine/selectors";
 
 const statusLabels: Record<HouseStatus, string> = {
   building: "building",

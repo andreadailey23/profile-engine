@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { House, HouseStatus, HouseType } from "@/lib/engine/types";
+import type { House, HouseStatus, HouseType } from "../lib/engine/types";
 
 const statusLabels: Record<HouseStatus, string> = {
   building: "building",
