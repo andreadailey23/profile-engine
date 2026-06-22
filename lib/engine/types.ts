@@ -116,6 +116,7 @@ export type House = {
   bannerUrl?: string;
   live?: boolean;
   liveUrl?: string;
+  liveEmbedUrl?: string;
   statusLine?: string;
   // Action wiring (host app drives these; engine emits events on click).
   supportUrl?: string;

@@ -11,6 +11,7 @@ import {
   Link2,
   MoreVertical,
   Package,
+  Play,
   Sparkles,
   Settings,
   UserRound,
@@ -271,6 +272,7 @@ export default function ProfileView({ profile }: Props) {
   const [bannerVisible, setBannerVisible] = useState(true);
   const [coverOverride, setCoverOverride] = useState<ProfileCoverId | undefined>();
   const [following, setFollowing] = useState(Boolean(house.following));
+  const [livePlaying, setLivePlaying] = useState(false);
   const [libraryFilter, setLibraryFilter] = useState<ProfileLibraryItemType | "all">("all");
   const [recommended, setRecommended] = useState(false);
   const [secondaryAccentOverride, setSecondaryAccentOverride] = useState<string | undefined>();
@@ -662,6 +664,48 @@ export default function ProfileView({ profile }: Props) {
             </div>
           </div>
         </article>
+
+        {house.live && house.liveEmbedUrl && (
+          <div className="mt-5 overflow-hidden rounded-lg border border-[var(--profile-border)] bg-black">
+            <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
+              {livePlaying ? (
+                <iframe
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                  className="absolute inset-0 h-full w-full"
+                  src={house.liveEmbedUrl}
+                  title={`${house.name} — live`}
+                />
+              ) : (
+                <button
+                  className="group absolute inset-0 grid place-items-center"
+                  onClick={() => setLivePlaying(true)}
+                  style={{
+                    background: house.bannerUrl
+                      ? `center / cover no-repeat url(${house.bannerUrl})`
+                      : profileCoverBackground(colors, cover.id),
+                  }}
+                  type="button"
+                >
+                  <span className="absolute inset-0 bg-black/45 transition group-hover:bg-black/30" />
+                  <span className="relative flex flex-col items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ff1f3d] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
+                      <span className="relative flex size-1.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                        <span className="relative inline-flex size-1.5 rounded-full bg-white" />
+                      </span>
+                      Live
+                    </span>
+                    <span className="grid size-16 place-items-center rounded-full bg-white/95 text-black shadow-[0_10px_40px_rgba(0,0,0,0.5)] transition group-hover:scale-105">
+                      <Play size={26} strokeWidth={0} fill="currentColor" aria-hidden="true" />
+                    </span>
+                    <span className="text-sm font-medium text-white">Watch the stream</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
           <aside className="grid content-start gap-4">
