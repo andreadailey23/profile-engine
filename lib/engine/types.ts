@@ -115,6 +115,7 @@ export type House = {
   avatarUrl?: string;
   bannerUrl?: string;
   live?: boolean;
+  liveUrl?: string;
   statusLine?: string;
   level?: number;
   levelProgress?: number;

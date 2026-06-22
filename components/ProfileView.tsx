@@ -513,6 +513,33 @@ export default function ProfileView({ profile }: Props) {
               <Settings size={17} strokeWidth={1.8} aria-hidden="true" />
             </Link>
           )}
+          {house.live && (
+            <div className={`relative z-20 flex items-center justify-between gap-3 bg-[#ff1f3d] px-5 py-2.5 sm:px-7 ${isOwnProfile ? "pr-16 sm:pr-16" : ""}`}>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="relative flex size-2.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex size-2.5 rounded-full bg-white" />
+                </span>
+                <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
+                  Live now
+                </span>
+                {house.statusLine && (
+                  <span className="truncate text-[12px] font-normal text-white/85">{house.statusLine}</span>
+                )}
+              </div>
+              {house.liveUrl && (
+                <a
+                  className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#ff1f3d] transition hover:opacity-90"
+                  href={house.liveUrl}
+                  target={house.liveUrl.startsWith("http") ? "_blank" : undefined}
+                  rel={house.liveUrl.startsWith("http") ? "noreferrer" : undefined}
+                >
+                  Watch
+                  <ArrowUpRight size={12} strokeWidth={2.2} aria-hidden="true" />
+                </a>
+              )}
+            </div>
+          )}
           <div className="relative z-0 min-h-[150px] border-b border-[var(--profile-border)] sm:min-h-[168px]" style={{ background: house.bannerUrl ? `center / cover no-repeat url(${house.bannerUrl})` : profileCoverBackground(colors, cover.id) }}>
             {cover.grid && !house.bannerUrl && (
               <div className="pointer-events-none absolute inset-0 z-0 opacity-45 [background-image:linear-gradient(var(--profile-grid)_1px,transparent_1px),linear-gradient(90deg,var(--profile-grid)_1px,transparent_1px)] [background-size:44px_44px]" />
@@ -550,20 +577,9 @@ export default function ProfileView({ profile }: Props) {
                 {avatarImage ? <img alt="" className="h-full w-full object-cover" src={avatarImage} /> : house.initials}
               </div>
               <div className="min-w-0 pt-4 sm:pt-5">
-                {(house.live || house.statusLine) && (
+                {house.statusLine && !house.live && (
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    {house.live && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ff2d55] px-2 py-0.5 text-[10px] font-normal uppercase tracking-[0.12em] text-white">
-                        <span className="relative flex size-1.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-                          <span className="relative inline-flex size-1.5 rounded-full bg-white" />
-                        </span>
-                        Live
-                      </span>
-                    )}
-                    {house.statusLine && (
-                      <span className="text-[12px] font-normal text-[var(--profile-text-soft)]">{house.statusLine}</span>
-                    )}
+                    <span className="text-[12px] font-normal text-[var(--profile-text-soft)]">{house.statusLine}</span>
                   </div>
                 )}
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
