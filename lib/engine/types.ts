@@ -117,6 +117,11 @@ export type House = {
   live?: boolean;
   liveUrl?: string;
   statusLine?: string;
+  // Action wiring (host app drives these; engine emits events on click).
+  supportUrl?: string;
+  followable?: boolean;
+  following?: boolean;
+  viewerIsOwner?: boolean;
   level?: number;
   levelProgress?: number;
   primaryColor: string;

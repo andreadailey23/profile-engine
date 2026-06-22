@@ -270,6 +270,7 @@ export default function ProfileView({ profile }: Props) {
   const [bannerIdentities, setBannerIdentities] = useState<string[]>(house.roles.slice(0, 3));
   const [bannerVisible, setBannerVisible] = useState(true);
   const [coverOverride, setCoverOverride] = useState<ProfileCoverId | undefined>();
+  const [following, setFollowing] = useState(Boolean(house.following));
   const [libraryFilter, setLibraryFilter] = useState<ProfileLibraryItemType | "all">("all");
   const [recommended, setRecommended] = useState(false);
   const [secondaryAccentOverride, setSecondaryAccentOverride] = useState<string | undefined>();
@@ -426,10 +427,29 @@ export default function ProfileView({ profile }: Props) {
     };
   }, [house.handle]);
 
+  useEffect(() => {
+    function onFollowState(event: Event) {
+      const detail = (event as CustomEvent<{ handle?: string; following?: boolean }>).detail;
+      if (detail?.handle !== house.handle) return;
+      setFollowing(Boolean(detail.following));
+    }
+
+    window.addEventListener("playwave:profile-follow-state", onFollowState);
+    return () => window.removeEventListener("playwave:profile-follow-state", onFollowState);
+  }, [house.handle]);
+
   function toggleRecommended() {
     const nextRecommended = !recommended;
     setRecommended(nextRecommended);
     window.localStorage.setItem(profileRecommendedStorageKey(house.handle), String(nextRecommended));
+  }
+
+  function requestFollow() {
+    window.dispatchEvent(
+      new CustomEvent("playwave:profile-follow", {
+        detail: { handle: house.handle, id: house.id, next: !following },
+      }),
+    );
   }
 
   const professionalModules = useMemo(
@@ -587,12 +607,34 @@ export default function ProfileView({ profile }: Props) {
                     {house.shortDescription}
                   </p>
                   <div className="flex shrink-0 flex-wrap justify-end gap-1.5 lg:self-end">
-                    <button className="inline-flex h-7 items-center rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-button-text)] transition hover:opacity-90" type="button">
-                      Follow
-                    </button>
-                    <button className="inline-flex h-7 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" type="button">
-                      Support
-                    </button>
+                    {!house.viewerIsOwner && (
+                      <>
+                        <button
+                          aria-pressed={following}
+                          className={
+                            following
+                              ? "inline-flex h-7 items-center rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent-soft)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-accent-strong)] transition hover:opacity-90"
+                              : "inline-flex h-7 items-center rounded-md border border-[var(--profile-accent)] bg-[var(--profile-accent)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-button-text)] transition hover:opacity-90"
+                          }
+                          onClick={house.followable ? requestFollow : undefined}
+                          type="button"
+                        >
+                          {following ? "Following" : "Follow"}
+                        </button>
+                        {house.supportUrl ? (
+                          <a
+                            className="inline-flex h-7 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]"
+                            href={house.supportUrl}
+                          >
+                            Support
+                          </a>
+                        ) : (
+                          <button className="inline-flex h-7 items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] px-2.5 text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]" type="button">
+                            Support
+                          </button>
+                        )}
+                      </>
+                    )}
                     <button
                       aria-pressed={recommended}
                       className={
