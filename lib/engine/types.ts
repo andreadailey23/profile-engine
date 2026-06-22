@@ -113,6 +113,8 @@ export type House = {
   description: string;
   initials: string;
   avatarUrl?: string;
+  // Avatar treatment when there's no photo: filled disc (default) or color outline.
+  avatarStyle?: "fill" | "outline";
   bannerUrl?: string;
   live?: boolean;
   liveUrl?: string;

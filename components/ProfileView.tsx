@@ -520,7 +520,9 @@ export default function ProfileView({ profile }: Props) {
   const libraryTitle = house.handle === "streamo" ? "My Games" : "Library";
   const avatarColor = colors.accent;
   const avatarImage = avatarOverride?.image ?? house.avatarUrl;
-  const avatarIsOutline = avatarOverride?.mode === "outline" && !avatarImage;
+  // Fill vs outline: the local override wins (live editing), else the shared record.
+  const avatarMode = avatarOverride?.mode ?? house.avatarStyle ?? "fill";
+  const avatarIsOutline = avatarMode === "outline" && !avatarImage;
   const visibleBannerIdentities = bannerVisible ? bannerIdentities.slice(0, 3) : [];
   const isOwnProfile = house.handle === ownerProfileHandle;
   const showVibe = house.vibes.length > 0 && !hiddenSections.includes("vibe");
