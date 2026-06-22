@@ -131,6 +131,8 @@ export type House = {
   level?: number;
   levelProgress?: number;
   primaryColor: string;
+  // Optional second accent (accentStrong) so a profile can carry two colors.
+  secondaryColor?: string;
   themeId?: ProfileThemeId;
   status: HouseStatus;
   owner: string;

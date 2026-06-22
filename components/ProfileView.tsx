@@ -165,15 +165,19 @@ function profileThemeColors(
   accentOverride: string | undefined,
   secondaryAccentOverride: string | undefined,
   profileAccent: string | undefined,
+  profileSecondaryAccent: string | undefined,
 ) {
-  if (!accentOverride && !secondaryAccentOverride && !profileAccent) return theme.colors;
+  if (!accentOverride && !secondaryAccentOverride && !profileAccent && !profileSecondaryAccent) return theme.colors;
 
   const accent = accentOverride ?? profileAccent ?? theme.colors.accent;
 
   return {
     ...theme.colors,
     accent,
-    accentStrong: secondaryAccentOverride ?? (accentOverride && !profileAccent ? accentOverride : theme.colors.accentStrong),
+    accentStrong:
+      secondaryAccentOverride ??
+      profileSecondaryAccent ??
+      (accentOverride && !profileAccent ? accentOverride : theme.colors.accentStrong),
     accentSoft: `${accent}24`,
   };
 }
@@ -280,7 +284,8 @@ export default function ProfileView({ profile }: Props) {
   const [themeOverride, setThemeOverride] = useState<ProfileThemeId | undefined>();
   const theme = getProfileTheme(themeOverride ?? house.themeId);
   const profileAccent = validAccentColor(house.primaryColor);
-  const colors = profileThemeColors(theme, accentOverride, secondaryAccentOverride, profileAccent);
+  const profileSecondaryAccent = validAccentColor(house.secondaryColor);
+  const colors = profileThemeColors(theme, accentOverride, secondaryAccentOverride, profileAccent, profileSecondaryAccent);
   const cover = getProfileCover(coverOverride);
 
   useEffect(() => {
