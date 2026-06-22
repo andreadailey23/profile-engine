@@ -502,7 +502,8 @@ export default function ProfileView({ profile }: Props) {
   const socialLinks = links.filter((link) => link.type === "social");
   const coreLinks = links.filter((link) => link.type !== "social");
   const nextScheduleItem = schedule[0];
-  const showLibrary = libraryItems.length > 0;
+  const hiddenSections = house.hiddenSections ?? [];
+  const showLibrary = libraryItems.length > 0 && !hiddenSections.includes("library");
   const libraryTypes = Array.from(new Set(libraryItems.map((item) => item.type)));
   const visibleLibraryItems =
     libraryFilter === "all" ? libraryItems : libraryItems.filter((item) => item.type === libraryFilter);
@@ -520,6 +521,12 @@ export default function ProfileView({ profile }: Props) {
   const avatarIsOutline = avatarOverride?.mode === "outline" && !avatarImage;
   const visibleBannerIdentities = bannerVisible ? bannerIdentities.slice(0, 3) : [];
   const isOwnProfile = house.handle === ownerProfileHandle;
+  const showVibe = house.vibes.length > 0 && !hiddenSections.includes("vibe");
+  const showStats = !hiddenSections.includes("stats");
+  const showProfessional = !hiddenSections.includes("professional");
+  const visibleActionTabs = profileActionTabs.filter(
+    (tab) => tab.key !== "professional" || showProfessional,
+  );
 
   return (
     <main className="min-h-full bg-[var(--profile-bg)] text-[var(--profile-text)]" style={profileThemeVars(colors)}>
@@ -650,14 +657,16 @@ export default function ProfileView({ profile }: Props) {
                       <Sparkles size={11} strokeWidth={1.9} aria-hidden="true" />
                       Recommend
                     </button>
-                    <button
-                      aria-label="More profile actions"
-                      className="inline-grid size-7 place-items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]"
-                      onClick={() => setActiveActionTab("professional")}
-                      type="button"
-                    >
-                      <MoreVertical size={13} aria-hidden="true" />
-                    </button>
+                    {showProfessional && (
+                      <button
+                        aria-label="More profile actions"
+                        className="inline-grid size-7 place-items-center rounded-md border border-[var(--profile-border)] bg-[var(--profile-surface-soft)] text-[var(--profile-text)] transition hover:border-[var(--profile-accent)]"
+                        onClick={() => setActiveActionTab("professional")}
+                        type="button"
+                      >
+                        <MoreVertical size={13} aria-hidden="true" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -718,11 +727,13 @@ export default function ProfileView({ profile }: Props) {
                 <PillList items={house.roles.slice(0, 5)} />
               </ProfileSpineBlock>
 
-              <ProfileSpineBlock title="Vibe">
-                <PillList items={house.vibes.slice(0, 5)} accent />
-              </ProfileSpineBlock>
+              {showVibe && (
+                <ProfileSpineBlock title="Vibe">
+                  <PillList items={house.vibes.slice(0, 5)} accent />
+                </ProfileSpineBlock>
+              )}
 
-              {house.highlights && house.highlights.length > 0 && (
+              {showStats && house.highlights && house.highlights.length > 0 && (
                 <ProfileSpineBlock title="Stats">
                   <div className="grid gap-2">
                     {typeof house.level === "number" && (
@@ -829,7 +840,7 @@ export default function ProfileView({ profile }: Props) {
 
           <section className="min-w-0 overflow-hidden rounded-lg border border-[var(--profile-border)] bg-[var(--profile-surface)]">
             <div className="flex gap-2 overflow-x-auto border-b border-[var(--profile-border)] bg-[var(--profile-surface)] p-3">
-              {profileActionTabs.map((tab) => (
+              {visibleActionTabs.map((tab) => (
                 <button
                   className={`inline-flex h-8 shrink-0 items-center rounded-md border px-3 text-[10px] font-normal uppercase tracking-[0.12em] transition ${
                     activeActionTab === tab.key

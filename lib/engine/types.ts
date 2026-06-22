@@ -123,6 +123,9 @@ export type House = {
   followable?: boolean;
   following?: boolean;
   viewerIsOwner?: boolean;
+  // Section keys the owner has hidden on this profile (e.g. "stats", "library",
+  // "vibe", "professional"). Host-driven "what shows where".
+  hiddenSections?: string[];
   level?: number;
   levelProgress?: number;
   primaryColor: string;
