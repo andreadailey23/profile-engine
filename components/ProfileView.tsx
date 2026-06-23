@@ -286,7 +286,7 @@ export default function ProfileView({ profile }: Props) {
   const profileAccent = validAccentColor(house.primaryColor);
   const profileSecondaryAccent = validAccentColor(house.secondaryColor);
   const colors = profileThemeColors(theme, accentOverride, secondaryAccentOverride, profileAccent, profileSecondaryAccent);
-  const cover = getProfileCover(coverOverride);
+  const cover = getProfileCover(coverOverride ?? validProfileCoverId(house.coverId ?? null));
 
   useEffect(() => {
     function syncStoredTheme() {
@@ -523,7 +523,6 @@ export default function ProfileView({ profile }: Props) {
     }))
     .filter((group) => group.items.length > 0);
   const libraryTitle = house.handle === "streamo" ? "My Games" : "Library";
-  const avatarColor = colors.accent;
   const avatarImage = avatarOverride?.image ?? house.avatarUrl;
   // Fill vs outline: the local override wins (live editing), else the shared record.
   const avatarMode = avatarOverride?.mode ?? house.avatarStyle ?? "fill";
@@ -606,9 +605,13 @@ export default function ProfileView({ profile }: Props) {
               <div
                 className="relative z-20 -mt-[54px] grid size-[108px] shrink-0 place-items-center overflow-hidden rounded-full border-4 text-[52px] font-normal leading-none shadow-[0_20px_55px_var(--profile-shadow)]"
                 style={{
-                  background: avatarImage ? colors.surface : avatarIsOutline ? "transparent" : avatarColor,
-                  borderColor: avatarIsOutline ? avatarColor : colors.surface,
-                  color: avatarIsOutline ? avatarColor : colors.buttonText,
+                  background: avatarImage
+                    ? colors.surface
+                    : avatarIsOutline
+                      ? "transparent"
+                      : `linear-gradient(135deg, ${colors.accent}, ${colors.accentStrong})`,
+                  borderColor: avatarIsOutline ? colors.accent : colors.surface,
+                  color: avatarIsOutline ? colors.accentStrong : colors.buttonText,
                 }}
                 aria-hidden="true"
               >

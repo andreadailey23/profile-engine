@@ -133,6 +133,8 @@ export type House = {
   primaryColor: string;
   // Optional second accent (accentStrong) so a profile can carry two colors.
   secondaryColor?: string;
+  // Background pattern (cover) id, e.g. "grid-glow", "harlequin", "arcade-grid".
+  coverId?: string;
   themeId?: ProfileThemeId;
   status: HouseStatus;
   owner: string;
