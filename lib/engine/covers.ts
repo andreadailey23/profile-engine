@@ -7,7 +7,9 @@ export type ProfileCoverId =
   | "arcade-grid"
   | "bookplate"
   | "soundwave"
-  | "artist-geometry";
+  | "artist-geometry"
+  | "checkerboard"
+  | "pinstripe";
 
 export type ProfileCoverColors = {
   accent: string;
@@ -90,6 +92,20 @@ export const profileCovers: ProfileCover[] = [
     description: "Clean geometric blocks for visual profiles.",
     grid: false,
   },
+  {
+    id: "checkerboard",
+    label: "Checker",
+    name: "Checkerboard",
+    description: "A bold checkerboard for high-contrast profiles.",
+    grid: false,
+  },
+  {
+    id: "pinstripe",
+    label: "Stripe",
+    name: "Pinstripe",
+    description: "Fine vertical pinstripes — sharp and tailored.",
+    grid: false,
+  },
 ];
 
 export function validProfileCoverId(value: string | null): ProfileCoverId | undefined {
@@ -160,6 +176,21 @@ export function profileCoverBackground(colors: ProfileCoverColors, coverId: Prof
       linear-gradient(135deg, ${colors.accentSoft} 0 18%, transparent 18% 100%),
       linear-gradient(45deg, transparent 0 62%, ${colors.grid} 62% 64%, transparent 64% 100%),
       radial-gradient(circle at 74% 34%, ${colors.accent}38 0%, transparent 24%),
+      linear-gradient(180deg, ${colors.surfaceLift} 0%, ${colors.surface} 100%)
+    `;
+  }
+
+  if (coverId === "checkerboard") {
+    return `
+      repeating-conic-gradient(${colors.accentSoft} 0% 25%, transparent 0% 50%) 0 0 / 38px 38px,
+      linear-gradient(180deg, ${colors.surfaceLift} 0%, ${colors.surface} 100%)
+    `;
+  }
+
+  if (coverId === "pinstripe") {
+    return `
+      repeating-linear-gradient(90deg, ${colors.grid} 0 1px, transparent 1px 9px),
+      linear-gradient(118deg, ${colors.accent}30 0%, transparent 48%),
       linear-gradient(180deg, ${colors.surfaceLift} 0%, ${colors.surface} 100%)
     `;
   }
