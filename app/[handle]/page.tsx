@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 import ProfileView from "@/components/ProfileView";
-import { getProfileRecord, getPublicProfiles } from "@/lib/engine/selectors";
+import { getMergedProfileRecord } from "@/lib/profileOverrides";
 
-export function generateStaticParams() {
-  return getPublicProfiles().map((house) => ({ handle: house.handle }));
-}
+// Render per request so saved profile edits (from the overrides store) show.
+export const dynamic = "force-dynamic";
 
 export default async function HousePage({
   params,
@@ -12,7 +11,7 @@ export default async function HousePage({
   params: Promise<{ handle: string }>;
 }) {
   const { handle } = await params;
-  const profile = getProfileRecord(handle);
+  const profile = await getMergedProfileRecord(handle);
   if (!profile) notFound();
 
   return (
